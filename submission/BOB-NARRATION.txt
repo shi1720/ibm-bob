@@ -1,0 +1,3 @@
+Here is Bob working directly in this repository. It added forty-one regression tests for source-derived checkout contracts, including the lost order and unchanged repair invariant.
+
+We reran the tests. The code and reviewed findings are in the repository.

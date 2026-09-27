@@ -1,172 +1,143 @@
 1
-00:00:00,000 --> 00:00:07,704
-Your deployment is green. Then you roll back,
-and a new customer order
+00:00:00,300 --> 00:00:05,790
+Your deployment is green. Then you roll back, and a new customer order disappears.
 
 2
-00:00:07,704 --> 00:00:15,407
-disappears. I'm Shivam Gupta. UndoProof
-rehearses the recovery plan before a database
-migration
+00:00:06,440 --> 00:00:12,984
+Built by Shivam Gupta, UndoProof rehearses the recovery plan before a database migration ships.
 
 3
-00:00:15,407 --> 00:00:16,000
-ships.
+00:00:16,300 --> 00:00:22,599
+This is our checkout example. The release works, but its rollback quietly loses a new order.
 
 4
-00:00:16,000 --> 00:00:22,500
-This is our checkout example. The release works,
-but its rollback quietly loses
+00:00:24,300 --> 00:00:29,701
+A release contract makes the migration, application queries, and important data explicit.
 
 5
-00:00:22,500 --> 00:00:24,000
-a new order.
+00:00:30,300 --> 00:00:35,121
+Here is the problem. The rollback drops the current orders table and restores
 
 6
-00:00:24,000 --> 00:00:30,000
-A release contract makes the migration,
-application queries, and important data
-explicit.
-
-7
-00:00:30,000 --> 00:00:36,500
-Here is the problem. The rollback drops the
-current orders table and restores
-
-8
-00:00:36,500 --> 00:00:39,000
+00:00:35,121 --> 00:00:37,312
 a snapshot taken before deployment.
 
+7
+00:00:39,300 --> 00:00:43,177
+This write creates order one hundred and four after deployment.
+
+8
+00:00:43,177 --> 00:00:45,823
+Our recovery plan must preserve that order.
+
 9
-00:00:39,000 --> 00:00:45,118
-This write creates order one hundred and four
-after deployment. Our recovery plan
+00:00:47,300 --> 00:00:51,932
+Let us rehearse. UndoProof runs real PostgreSQL through PGlite.
 
 10
-00:00:45,118 --> 00:00:47,000
-must preserve that order.
+00:00:51,932 --> 00:00:54,579
+The result blocks this release plan.
 
 11
-00:00:47,000 --> 00:00:54,429
-Let's rehearse. UndoProof runs real PostgreSQL
-through PGlite. The result blocks this release
+00:00:55,300 --> 00:00:59,060
+The forward path works. The rollback SQL also succeeds.
 
 12
-00:00:54,429 --> 00:00:55,000
-plan.
+00:00:59,060 --> 00:01:03,709
+But data preservation fails. Those are deliberately separate checks.
 
 13
-00:00:55,000 --> 00:01:01,500
-The forward path works. The rollback SQL also
-succeeds. But data preservation fails.
+00:01:04,300 --> 00:01:08,569
+Here is the evidence. Four rows before rollback, three afterward.
 
 14
-00:01:01,500 --> 00:01:04,000
-Those are deliberately separate checks.
+00:01:08,569 --> 00:01:11,327
+The highlighted new order has disappeared.
 
 15
-00:01:04,000 --> 00:01:10,118
-Here is the evidence. Four rows before rollback,
-three afterward. The highlighted new
+00:01:11,977 --> 00:01:16,111
+We compare exact values in the supplied invariant projection.
 
 16
-00:01:10,118 --> 00:01:16,235
-order has disappeared. We compare exact values
-in the supplied invariant projection, so
+00:01:16,111 --> 00:01:19,500
+A successful SQL command cannot hide this failure.
 
 17
-00:01:16,235 --> 00:01:20,000
-a successful SQL command cannot hide this
-failure.
+00:01:20,300 --> 00:01:24,727
+This export gives Bob the exact contract and failure evidence.
 
 18
-00:01:20,000 --> 00:01:25,318
-This export gives Bob the exact contract and
-failure evidence. It is a
+00:01:24,727 --> 00:01:28,512
+It is a manual IDE handoff for a focused repair task.
 
 19
-00:01:25,318 --> 00:01:29,000
-manual IDE handoff, ready for a focused repair
-task.
+00:01:29,300 --> 00:01:32,455
+For this example, we include a repair to review.
 
 20
-00:01:29,000 --> 00:01:34,828
-For this example, we include a repair to review.
-It keeps the compatible
+00:01:32,455 --> 00:01:37,188
+It keeps the compatible expanded schema when the application rolls back.
 
 21
-00:01:34,828 --> 00:01:40,655
-expanded schema when the application rolls back.
-Removing the destructive snapshot restore
-preserves
+00:01:37,747 --> 00:01:41,700
+Removing the destructive snapshot restore preserves the new data.
 
 22
-00:01:40,655 --> 00:01:42,000
-the new data.
+00:01:42,300 --> 00:01:45,798
+Apply the reviewed SQL and run the same engine again.
 
 23
-00:01:42,000 --> 00:01:50,125
-Apply the reviewed SQL and run the same engine
-again. This time every
+00:01:45,798 --> 00:01:48,306
+This time every supplied check passes.
 
 24
-00:01:50,125 --> 00:01:52,000
-supplied check passes.
+00:01:52,300 --> 00:01:56,180
+All four orders survive, including the write after deployment.
 
 25
-00:01:52,000 --> 00:01:58,000
-All four orders survive, including the write
-after deployment. The earlier application
-queries
+00:01:56,180 --> 00:01:58,870
+The earlier application queries still work.
 
 26
-00:01:58,000 --> 00:02:04,000
-still work. Rolling back application code does
-not require deleting the expanded schema.
+00:01:59,068 --> 00:02:03,700
+Rolling back application code does not require deleting the expanded schema.
 
 27
-00:02:04,000 --> 00:02:10,118
-The evidence packet includes executed SQL, data
-comparisons, measured runtime, and a hash
+00:02:04,300 --> 00:02:11,268
+Export the tested contract, executed SQL, row comparisons and measured runtime as evidence.
 
 28
-00:02:10,118 --> 00:02:12,000
-identifying the tested contract.
+00:02:12,300 --> 00:02:17,343
+History keeps both outcomes. Developers can import their own contracts, and the
 
 29
-00:02:12,000 --> 00:02:17,909
-History keeps both outcomes. Developers can
-import their own contracts, and the command-line
+00:02:17,343 --> 00:02:21,110
+command-line runner uses the same engine as a release gate.
 
 30
-00:02:17,909 --> 00:02:22,000
-runner uses the same engine as a release gate.
+00:02:22,300 --> 00:02:25,375
+Here is Bob working directly in this repository.
 
 31
-00:02:22,000 --> 00:02:28,842
-The Bob workflow starts with repository context
-and this concrete failure. A developer
+00:02:25,375 --> 00:02:30,755
+It added forty-one regression tests for source-derived checkout contracts, including
 
 32
-00:02:28,842 --> 00:02:35,684
-asks Bob to inspect a repair, reviews the
-proposed change, and rehearses again.
+00:02:30,755 --> 00:02:33,701
+the lost order and unchanged repair invariant.
 
 33
-00:02:35,684 --> 00:02:42,000
-The handoff never substitutes an AI confidence
-score for executed database evidence.
+00:02:34,351 --> 00:02:39,082
+We reran the tests. The code and reviewed findings are in the repository.
 
 34
-00:02:42,000 --> 00:02:48,067
-UndoProof is open source. Our proposed team
-product adds shared policies and retained
+00:02:42,300 --> 00:02:48,664
+UndoProof is open source. Our proposed team product adds shared policies and retained evidence.
 
 35
-00:02:48,067 --> 00:02:54,133
-evidence. These results cover the tested SQL and
-fixtures. The way back belongs
+00:02:49,314 --> 00:02:52,459
+These results cover the tested SQL and fixtures.
 
 36
-00:02:54,133 --> 00:02:56,000
-in the release review.
+00:02:52,459 --> 00:02:55,276
+The way back belongs in the release review.

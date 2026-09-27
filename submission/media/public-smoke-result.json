@@ -1,6 +1,6 @@
 {
-  "url": "https://shi1720.github.io/ibm-bob/",
-  "verifiedAt": "2026-09-27T03:42:30.121Z",
+  "url": "https://undoproof.web.app",
+  "verifiedAt": "2026-09-27T04:13:08.259Z",
   "status": "passed",
   "flow": [
     "unsafe contract blocked",
@@ -12,70 +12,78 @@
   "checkCount": 10,
   "contractHash": "eb3783a6c63dd4a7bcd1625b56ae792561c283016088780e1ae8d3b09dacc80c",
   "engine": "PostgreSQL / PGlite 0.3.16 (WASM)",
-  "durationMs": 1603.7,
+  "durationMs": 1948.8,
   "assets": [
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/worker-B_mb2DK7.js",
+      "url": "https://undoproof.web.app/assets/worker-B7NeX_9j.js",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-BdRI_ZYT.wasm",
+      "url": "https://undoproof.web.app/assets/pglite-BdRI_ZYT.wasm",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/worker-B_mb2DK7.js",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-BdRI_ZYT.wasm",
+      "url": "https://undoproof.web.app/assets/worker-B7NeX_9j.js",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-BdRI_ZYT.wasm",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     },
     {
-      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://undoproof.web.app/assets/pglite-COscPi1Y.data",
       "status": 200
     }
   ],

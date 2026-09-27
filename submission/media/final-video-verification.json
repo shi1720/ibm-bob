@@ -1,0 +1,15 @@
+{
+  "durationSeconds": 176.006833,
+  "actualApplicationSeconds": 126,
+  "width": 1920,
+  "height": 1080,
+  "syntheticVoice": "Samantha (English (US))",
+  "bobScreenshot": "submission/media/bob-verification-work.png",
+  "captionCount": 36,
+  "sizeBytes": 8727675,
+  "bobCaptureType": "Genuine IDE work capture, not task consumption summary",
+  "audioMeanDb": -16.1,
+  "audioPeakDb": -1.3,
+  "minimumCaptionDurationSeconds": 2.191,
+  "fullDecodePassed": true
+}
