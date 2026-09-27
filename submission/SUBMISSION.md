@@ -20,17 +20,17 @@ Shivam Gupta created UndoProof for the IBM Bob 2.0 Hackathon. The initial commer
 
 The prototype uses original synthetic data and needs no database credentials or paid inference API for rehearsals. Results establish what happened for the supplied SQL contracts and fixtures. They do not establish full application behavior, production lock safety, concurrent transaction behavior, or complete production parity.
 
-## IBM Bob usage statement - final evidence verification required
+## IBM Bob usage statement - eligibility evidence pending
 
-**Submission editor: replace this section after reviewing the genuine task summaries and repository changes. Do not submit the draft as a completed usage claim.**
+**Do not submit this section as a completed usage statement. Meaningful IBM Bob IDE work and the required genuine task-summary screenshots remain unverified.**
 
-IBM Bob IDE is participating in UndoProof's core implementation, rather than serving only as a presentation assistant. The assigned work is the shared PostgreSQL rehearsal engine and its tests, using the project's release-contract specification. This covers the isolation of independent checks, compatibility queries, execution of rollback after representative new writes, and comparison of the data invariant.
+UndoProof currently exports a manual Bob repair handoff. It includes the exact release contract and actual execution evidence, including failed SQL and data differences. A developer can give that context to Bob IDE, ask it to inspect a repair against the repository, review the resulting changes, and rehearse again. This capability is not a live Bob API integration and does not itself establish active Bob IDE use.
 
-After the task completes, this statement must identify the exact Bob-assisted files and the observed implementation and validation work. Relevant task session consumption summary screenshots belong in `bob_sessions/`. Any additional repair or review contribution should be included only when supported by the actual task history.
+The supplied scenario repairs are authored examples, not live AI generations. Do not attribute the rehearsal engine, tests, or repairs to Bob without actual task history establishing the contribution.
 
-UndoProof also exports a focused Bob repair prompt containing a release contract and execution evidence. This connects a reproducible failure to a concrete development task. Do not describe this as an autonomous Bob API integration: the handoff opens a human-reviewable prompt for use in Bob IDE.
+After a meaningful Bob task completes, replace this section with the exact observed work, name the code or documentation files it assisted, identify the validation performed, and link the genuine task session summary screenshots in `bob_sessions/`. Keep the final statement below 500 words.
 
-Shivam Gupta owns the product direction, project integration, and submission. The project uses AI-assisted development. All attribution in the final statement must accurately reflect the captured work.
+Shivam Gupta owns the product direction, project integration, and submission. The project uses AI-assisted development. Final attribution must accurately reflect the captured work.
 
 ## Technology and category tags
 
@@ -43,7 +43,9 @@ Web application with an optional local account server and a command-line rehears
 https://github.com/shi1720/ibm-bob
 
 ## Application URL
-Add the verified deployed URL here after hosting is complete. A local-only address is not a public application URL.
+https://shi1720.github.io/ibm-bob/
+
+The public application is a guest browser demo. Every rehearsal runs locally in the browser. The included self-hosted server adds login and personal persisted history; the public Pages deployment does not host accounts.
 
 ## Submission assets
 
@@ -53,12 +55,16 @@ Add the verified deployed URL here after hosting is complete. A local-only addre
 - Recording script and shot list: `submission/VIDEO-SCRIPT.md`
 - Commercial assumptions and competitors: `submission/COMMERCIAL.md`
 - Genuine IBM Bob task summaries: `bob_sessions/`
-- Final MP4, cover and verified screenshots: add after recording / capture
+- Actual 126-second silent screen recording: `submission/media/screen-demo.mp4`
+- Cover: `submission/cover.png`
+- Verified screenshots: `submission/media/`
+- Measured CLI evidence and workflow comparison: `submission/IMPACT.md`
+- Final narrated MP4: pending voiceover and verified Bob segment
 
 ## Final checks
 
 1. Replace the Bob statement with verified work and name the real screenshots.
-2. Insert the working public application URL and confirm the repository is public.
+2. Recheck the public application URL and public repository from an incognito session.
 3. Confirm the final MP4 is at most 180 seconds and shows the product operating for at least 90 seconds.
 4. Keep both written statements below 500 words after edits.
 5. Confirm slide links, screenshots and factual claims match the final build.

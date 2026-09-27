@@ -1,0 +1,210 @@
+{
+  "id": "7e879032-baea-4756-8d70-687a346c8f85",
+  "contractId": "checkout-service-release",
+  "contractName": "Checkout service: keep the paid order",
+  "startedAt": "2026-09-27T03:37:32.458Z",
+  "durationMs": 2913.49,
+  "engine": "PostgreSQL / PGlite 0.3.16 (WASM)",
+  "status": "passed",
+  "checks": [
+    {
+      "id": "baseline",
+      "name": "Baseline application",
+      "status": "passed",
+      "durationMs": 727.67,
+      "detail": "Old reads and writes execute against the original schema.",
+      "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;\nPREPARE undoproof_fixture_old AS INSERT INTO orders (id, customer, total_cents) VALUES ($1, $2, $3) RETURNING id, customer, total_cents;\nEXECUTE undoproof_fixture_old (205, E'Synthetic Studio''s legacy checkout', 12900);\nDEALLOCATE undoproof_fixture_old;"
+    },
+    {
+      "id": "forward",
+      "name": "Forward deployment",
+      "status": "passed",
+      "durationMs": 450.39,
+      "detail": "Migration and new application reads/writes execute successfully.",
+      "sql": "-- Candidate patch: the new column has a default, so the old writer still works.\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'\n  CHECK (status IN ('pending', 'paid'));\nSELECT id, customer, total_cents, status FROM orders ORDER BY id;\nPREPARE undoproof_fixture_new AS INSERT INTO orders (id, customer, total_cents, status) VALUES ($1, $2, $3, $4) RETURNING id, customer, total_cents, status;\nEXECUTE undoproof_fixture_new (204, E'Synthetic post-deployment customer', 34900, E'paid');\nDEALLOCATE undoproof_fixture_new;"
+    },
+    {
+      "id": "baseline-data",
+      "name": "Original data survives deployment",
+      "status": "passed",
+      "durationMs": 432.64,
+      "detail": "All 3 original business rows survived deployment unchanged.",
+      "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+      "before": [
+        {
+          "id": 201,
+          "customer": "Synthetic Paper Company",
+          "total_cents": 18900
+        },
+        {
+          "id": 202,
+          "customer": "Synthetic Ceramic Studio",
+          "total_cents": 7900
+        },
+        {
+          "id": 203,
+          "customer": "Synthetic Map Shop",
+          "total_cents": 21900
+        }
+      ],
+      "after": [
+        {
+          "id": 201,
+          "customer": "Synthetic Paper Company",
+          "total_cents": 18900
+        },
+        {
+          "id": 202,
+          "customer": "Synthetic Ceramic Studio",
+          "total_cents": 7900
+        },
+        {
+          "id": 203,
+          "customer": "Synthetic Map Shop",
+          "total_cents": 21900
+        }
+      ]
+    },
+    {
+      "id": "old-reader",
+      "name": "Old reader · new schema",
+      "status": "passed",
+      "durationMs": 439.7,
+      "detail": "Old application reads work during a rolling deployment.",
+      "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;"
+    },
+    {
+      "id": "old-writer",
+      "name": "Old writer · new schema",
+      "status": "passed",
+      "durationMs": 428.21,
+      "detail": "Old application writes are accepted and the new reader still executes.",
+      "sql": "PREPARE undoproof_fixture_old AS INSERT INTO orders (id, customer, total_cents) VALUES ($1, $2, $3) RETURNING id, customer, total_cents;\nEXECUTE undoproof_fixture_old (205, E'Synthetic Studio''s legacy checkout', 12900);\nDEALLOCATE undoproof_fixture_old;"
+    },
+    {
+      "id": "post-deploy",
+      "name": "Post-deploy data checkpoint",
+      "status": "passed",
+      "durationMs": 4.3,
+      "detail": "Captured 4 business rows after a visible post-deploy write.",
+      "sql": "PREPARE undoproof_fixture_new AS INSERT INTO orders (id, customer, total_cents, status) VALUES ($1, $2, $3, $4) RETURNING id, customer, total_cents, status;\nEXECUTE undoproof_fixture_new (204, E'Synthetic post-deployment customer', 34900, E'paid');\nDEALLOCATE undoproof_fixture_new;\nSELECT id, customer, total_cents FROM orders ORDER BY id;",
+      "before": [
+        {
+          "id": 201,
+          "customer": "Synthetic Paper Company",
+          "total_cents": 18900
+        },
+        {
+          "id": 202,
+          "customer": "Synthetic Ceramic Studio",
+          "total_cents": 7900
+        },
+        {
+          "id": 203,
+          "customer": "Synthetic Map Shop",
+          "total_cents": 21900
+        }
+      ],
+      "after": [
+        {
+          "id": 201,
+          "customer": "Synthetic Paper Company",
+          "total_cents": 18900
+        },
+        {
+          "id": 202,
+          "customer": "Synthetic Ceramic Studio",
+          "total_cents": 7900
+        },
+        {
+          "id": 203,
+          "customer": "Synthetic Map Shop",
+          "total_cents": 21900
+        },
+        {
+          "id": 204,
+          "customer": "Synthetic post-deployment customer",
+          "total_cents": 34900
+        }
+      ]
+    },
+    {
+      "id": "rollback",
+      "name": "Rollback plan",
+      "status": "passed",
+      "durationMs": 0.17,
+      "detail": "Rollback SQL completed. Data preservation is verified separately.",
+      "sql": "-- Roll back application code, retaining the backward-compatible expanded schema.\n-- Do not restore a snapshot over current customer orders.\nSELECT 1;"
+    },
+    {
+      "id": "preservation",
+      "name": "Data preservation",
+      "status": "passed",
+      "durationMs": 0.84,
+      "detail": "All 4 rows in the supplied invariant projection survived unchanged.",
+      "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+      "before": [
+        {
+          "id": 201,
+          "customer": "Synthetic Paper Company",
+          "total_cents": 18900
+        },
+        {
+          "id": 202,
+          "customer": "Synthetic Ceramic Studio",
+          "total_cents": 7900
+        },
+        {
+          "id": 203,
+          "customer": "Synthetic Map Shop",
+          "total_cents": 21900
+        },
+        {
+          "id": 204,
+          "customer": "Synthetic post-deployment customer",
+          "total_cents": 34900
+        }
+      ],
+      "after": [
+        {
+          "id": 201,
+          "customer": "Synthetic Paper Company",
+          "total_cents": 18900
+        },
+        {
+          "id": 202,
+          "customer": "Synthetic Ceramic Studio",
+          "total_cents": 7900
+        },
+        {
+          "id": 203,
+          "customer": "Synthetic Map Shop",
+          "total_cents": 21900
+        },
+        {
+          "id": 204,
+          "customer": "Synthetic post-deployment customer",
+          "total_cents": 34900
+        }
+      ]
+    },
+    {
+      "id": "old-after",
+      "name": "Old application after rollback",
+      "status": "passed",
+      "durationMs": 1.34,
+      "detail": "Old reads and writes execute after rollback; probe writes were rolled back.",
+      "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;\nPREPARE undoproof_fixture_old AS INSERT INTO orders (id, customer, total_cents) VALUES ($1, $2, $3) RETURNING id, customer, total_cents;\nEXECUTE undoproof_fixture_old (205, E'Synthetic Studio''s legacy checkout', 12900);\nDEALLOCATE undoproof_fixture_old;"
+    },
+    {
+      "id": "redo",
+      "name": "Redeploy after rollback",
+      "status": "passed",
+      "durationMs": 1.22,
+      "detail": "Migration can be reapplied and the new reader executes.",
+      "sql": "-- Candidate patch: the new column has a default, so the old writer still works.\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'\n  CHECK (status IN ('pending', 'paid'));\nSELECT id, customer, total_cents, status FROM orders ORDER BY id;"
+    }
+  ],
+  "contractHash": "5c6dd68be0de534f3d97335f18b83546e208baaef41fb3166ccde77efde3c4c2",
+  "summary": "All supplied SQL contracts passed. The supplied invariant projection was unchanged after rollback."
+}

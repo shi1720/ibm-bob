@@ -1,0 +1,66 @@
+[
+  {
+    "seconds": 0,
+    "label": "Product overview: The disappearing order"
+  },
+  {
+    "seconds": 8.1,
+    "label": "Executable release contract"
+  },
+  {
+    "seconds": 14,
+    "label": "Unsafe DOWN restores a pre-deployment snapshot"
+  },
+  {
+    "seconds": 23,
+    "label": "New order 104 is created after deployment"
+  },
+  {
+    "seconds": 31.1,
+    "label": "Run real isolated PostgreSQL checks"
+  },
+  {
+    "seconds": 33.8,
+    "label": "Blocked result arrives"
+  },
+  {
+    "seconds": 39,
+    "label": "Inspect compatibility matrix: rollback executes, preservation fails"
+  },
+  {
+    "seconds": 48.1,
+    "label": "Actual row comparison: order 104 disappears"
+  },
+  {
+    "seconds": 64.1,
+    "label": "Export exact contract and measured failures to IBM Bob"
+  },
+  {
+    "seconds": 73.1,
+    "label": "Review non-destructive repair SQL before applying"
+  },
+  {
+    "seconds": 86.5,
+    "label": "Apply reviewed SQL and rerun the same engine"
+  },
+  {
+    "seconds": 88.8,
+    "label": "Repaired contract passes"
+  },
+  {
+    "seconds": 96.1,
+    "label": "All four orders survive, including post-deployment write"
+  },
+  {
+    "seconds": 108.1,
+    "label": "Export reproducible JSON evidence packet"
+  },
+  {
+    "seconds": 116,
+    "label": "History records the blocked and repaired runs"
+  },
+  {
+    "seconds": 126,
+    "label": "End of recording"
+  }
+]

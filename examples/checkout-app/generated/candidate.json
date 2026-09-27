@@ -1,0 +1,15 @@
+{
+  "id": "checkout-service-release",
+  "name": "Checkout service: keep the paid order",
+  "description": "Generated from the runnable checkout service queries and its actual migration files. A customer order arrives after deployment; a snapshot-based rollback silently removes it.",
+  "migrationName": "001_add_order_payment_status",
+  "seedSql": "-- Original synthetic orders, shared by the HTTP sample and contract generator.\nCREATE TABLE orders (\n  id INTEGER PRIMARY KEY,\n  customer TEXT NOT NULL CHECK (length(customer) BETWEEN 1 AND 120),\n  total_cents INTEGER NOT NULL CHECK (total_cents >= 0)\n);\nINSERT INTO orders (id, customer, total_cents) VALUES\n  (201, 'Synthetic Paper Company', 18900),\n  (202, 'Synthetic Ceramic Studio', 7900),\n  (203, 'Synthetic Map Shop', 21900);",
+  "upSql": "-- Candidate patch: the new column has a default, so the old writer still works.\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'\n  CHECK (status IN ('pending', 'paid'));",
+  "downSql": "-- Roll back application code, retaining the backward-compatible expanded schema.\n-- Do not restore a snapshot over current customer orders.\nSELECT 1;",
+  "oldReadSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "newReadSql": "SELECT id, customer, total_cents, status FROM orders ORDER BY id;",
+  "newWriteSql": "PREPARE undoproof_fixture_new AS INSERT INTO orders (id, customer, total_cents, status) VALUES ($1, $2, $3, $4) RETURNING id, customer, total_cents, status;\nEXECUTE undoproof_fixture_new (204, E'Synthetic post-deployment customer', 34900, E'paid');\nDEALLOCATE undoproof_fixture_new;",
+  "oldWriteSql": "PREPARE undoproof_fixture_old AS INSERT INTO orders (id, customer, total_cents) VALUES ($1, $2, $3) RETURNING id, customer, total_cents;\nEXECUTE undoproof_fixture_old (205, E'Synthetic Studio''s legacy checkout', 12900);\nDEALLOCATE undoproof_fixture_old;",
+  "invariantSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "tags": ["Runnable sample", "PostgreSQL", "Checkout", "Synthetic data"]
+}

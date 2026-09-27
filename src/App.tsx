@@ -1,5 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronDown, ChevronRight, Circle, Clock3, Code2, Database, FileJson, FileText, FlaskConical, GitBranch, History, Info, LoaderCircle, LockKeyhole, LogOut, Play, Plus, RotateCcw, ShieldCheck, Sparkles, Trash2, Upload, X, XCircle } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Clock3,
+  Code2,
+  Database,
+  FileJson,
+  FileText,
+  FlaskConical,
+  GitBranch,
+  History,
+  Info,
+  LoaderCircle,
+  LockKeyhole,
+  LogOut,
+  Play,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  Settings2,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+  XCircle,
+} from 'lucide-react';
 import { contracts } from '../examples/contracts';
 import { contractSchema } from './engine/validate';
 import type { ReleaseContract, RunReport, CheckResult } from './engine/types';
@@ -7,46 +38,1470 @@ import type { ReleaseContract, RunReport, CheckResult } from './engine/types';
 type SavedRun = { id: string; contract: ReleaseContract; report: RunReport };
 type User = { id: string; name: string; email: string };
 type Tab = 'overview' | 'contract' | 'history';
-const SQL_FIELDS = [ ['seedSql','01 / Baseline','Create tables and synthetic fixtures.'], ['upSql','02 / Deploy migration','SQL applied to the baseline schema.'], ['oldReadSql','03 / Old application reads','The read query used by the previous app version.'], ['oldWriteSql','04 / Old application writes','The write performed by an old app instance.'], ['newReadSql','05 / New application reads','The read query used by the new app version.'], ['newWriteSql','06 / Post-deploy writes','New customer data created after deployment.'], ['invariantSql','07 / Data invariant','A stable projection of the customer-visible rows to preserve.'], ['downSql','08 / Roll back migration','The proposed rollback. Rehearse before you ship.'] ] as const;
+const SQL_FIELDS = [
+  ['seedSql', '01 / Baseline', 'Create tables and synthetic fixtures.'],
+  ['upSql', '02 / Deploy migration', 'SQL applied to the baseline schema.'],
+  ['oldReadSql', '03 / Old application reads', 'The read query used by the previous app version.'],
+  ['oldWriteSql', '04 / Old application writes', 'The write performed by an old app instance.'],
+  ['newReadSql', '05 / New application reads', 'The read query used by the new app version.'],
+  ['newWriteSql', '06 / Post-deploy writes', 'New customer data created after deployment.'],
+  [
+    'invariantSql',
+    '07 / Data invariant',
+    'A stable projection of the customer-visible rows to preserve.',
+  ],
+  ['downSql', '08 / Roll back migration', 'The proposed rollback. Rehearse before you ship.'],
+] as const;
 const storageKey = 'undoproof.runs.v1';
-function loadRuns(): SavedRun[] { try { return JSON.parse(localStorage.getItem(storageKey) || '[]').filter((r: SavedRun) => r.report?.checks && r.contract?.id).slice(0,20); } catch { return []; } }
-function download(name: string, text: string, type = 'text/plain') { const url = URL.createObjectURL(new Blob([text],{type})); const a = document.createElement('a'); a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000); }
-function markdown(report: RunReport, contract: ReleaseContract) { return `# UndoProof · ${report.contractName}\n\nVerdict: **${report.status.toUpperCase()}**\n\n${report.summary}\n\n- Run: ${report.id}\n- Started: ${report.startedAt}\n- Engine: ${report.engine}\n- Contract hash: ${report.contractHash}\n- Runtime: ${report.durationMs}ms\n\n${report.checks.map(c=>`## ${c.status.toUpperCase()} · ${c.name}\n\n${c.detail}\n\n${c.sql?'\`\`\`sql\n'+c.sql+'\n\`\`\`\n':''}${c.error?'Error: '+c.error+'\n':''}${c.before?'Before:\n\`\`\`json\n'+JSON.stringify(c.before,null,2)+'\n\`\`\`\n':''}${c.after?'After:\n\`\`\`json\n'+JSON.stringify(c.after,null,2)+'\n\`\`\`\n':''}`).join('\n')}\n## Scope\nSynthetic SQL contracts executed in PGlite. This is not production PostgreSQL parity, full application E2E, or proof of concurrency and locking safety. Read/write query success alone does not establish business semantics.\n\n## Release contract\n\`\`\`json\n${JSON.stringify(contract,null,2)}\n\`\`\`\n`; }
-function repairPrompt(contract: ReleaseContract, report: RunReport | null) { return `You are reviewing a PostgreSQL deployment in IBM Bob IDE. Inspect this release contract and the repository. Repair the migration so old and new applications remain compatible and rollback preserves ALL preexisting and post-deploy writes. Prefer expand-contract changes and non-destructive rollback. Do not weaken invariants or remove fixtures to make checks pass. Explain tradeoffs and run UndoProof again.\n\nCONTRACT\n${JSON.stringify(contract,null,2)}\n\nACTUAL REHEARSAL REPORT\n${report?JSON.stringify(report,null,2):'No rehearsal has been run yet.'}\n\nUse parallel focused analysis where helpful: compatibility, data preservation, and independent verification. Record genuine task summary screenshots in bob_sessions after completing the work.`; }
-function validContract(value: unknown): value is ReleaseContract { return contractSchema.safeParse(value).success; }
-async function api(path: string, options?: RequestInit) { const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...options?.headers}}); if(res.status===204)return {};const type=res.headers.get('content-type')||'';if(!type.includes('application/json')) throw new Error('Accounts are available with the self-hosted server. This browser demo remains fully usable without signing in.'); const data=await res.json();if(!res.ok) throw new Error(data.error || data.message || 'The request could not be completed.');return data; }
-const formatTime=(ms:number)=>ms<1000?`${Math.round(ms)} ms`:`${(ms/1000).toFixed(2)} s`;
-export default function App() {
- const [contract,setContract]=useState<ReleaseContract>(()=>structuredClone(contracts[0]));const [report,setReport]=useState<RunReport|null>(null);const [reportContract,setReportContract]=useState<ReleaseContract|null>(null);const [tab,setTab]=useState<Tab>('overview');const [running,setRunning]=useState(false);const [elapsed,setElapsed]=useState(0);const [error,setError]=useState('');const [notice,setNotice]=useState('');const [selected,setSelected]=useState<CheckResult|null>(null);const [localRuns,setLocalRuns]=useState<SavedRun[]>(loadRuns);const [cloudRuns,setCloudRuns]=useState<SavedRun[]>([]);const [user,setUser]=useState<User|null>(null);const [auth,setAuth]=useState<'login'|'register'|null>(null);const [accountsAvailable,setAccountsAvailable]=useState<boolean|null>(null);const [authBusy,setAuthBusy]=useState(false);const [authError,setAuthError]=useState('');const [repair,setRepair]=useState(false);const [sqlField,setSqlField]=useState<(typeof SQL_FIELDS)[number][0]>('upSql');const [examplesOpen,setExamplesOpen]=useState(false); const fileRef=useRef<HTMLInputElement>(null);const workerRef=useRef<Worker|null>(null);const timeoutRef=useRef<ReturnType<typeof setTimeout>|null>(null);
- useEffect(()=>{api('/auth/me').then(d=>{setAccountsAvailable(true);if(d.user)setUser(d.user);}).catch(()=>setAccountsAvailable(false));return()=>{workerRef.current?.terminate();if(timeoutRef.current)clearTimeout(timeoutRef.current);};},[]);
- useEffect(()=>{if(user)api('/runs').then(d=>setCloudRuns(Array.isArray(d)?d:d.runs||[])).catch(e=>setNotice(e.message));else setCloudRuns([]);},[user]);
- useEffect(()=>{if(!running)return;const start=Date.now();setElapsed(0);const timer=setInterval(()=>setElapsed(Date.now()-start),100);return()=>clearInterval(timer);},[running]);
- useEffect(()=>{if(!auth&&!selected&&!repair)return;const previous=document.activeElement as HTMLElement|null;const modal=document.querySelector<HTMLElement>('[role=dialog]');const focusable=()=>Array.from(modal?.querySelectorAll<HTMLElement>('button:not(:disabled), input, textarea, a[href], [tabindex="0"]')||[]);focusable()[0]?.focus();const listener=(e:KeyboardEvent)=>{if(e.key==='Escape'){setAuth(null);setSelected(null);setRepair(false);}if(e.key==='Tab'){const items=focusable();const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};document.addEventListener('keydown',listener);const oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.removeEventListener('keydown',listener);document.body.style.overflow=oldOverflow;previous?.focus();};},[auth,selected,repair]);
- function choose(c:ReleaseContract){if(running)return;setContract(structuredClone(c));setReport(null);setReportContract(null);setSelected(null);setError('');setNotice('');setExamplesOpen(false);setTab('overview');}
- function update(field:keyof ReleaseContract,value:string){setContract(c=>({...c,[field]:value}));}
- async function run(c:ReleaseContract=contract){if(running)return;setRunning(true);setError('');setNotice('');setReport(null);setSelected(null);setTab('overview');const snapshot=structuredClone(c);let worker:Worker;try{worker=new Worker(new URL('./engine/worker.ts',import.meta.url),{type:'module'});}catch(e){setRunning(false);setError('The isolated SQL worker could not start: '+(e as Error).message);return;}workerRef.current=worker;
- const stop=()=>{worker.terminate();workerRef.current=null;if(timeoutRef.current)clearTimeout(timeoutRef.current);setRunning(false);};
- timeoutRef.current=setTimeout(()=>{stop();setError('Rehearsal stopped after 30 seconds. Check for long-running SQL or an oversized fixture. The isolated worker was terminated.');},30000);
- worker.onerror=(e)=>{stop();setError(e.message||'The SQL worker could not start. Try refreshing the page.');};worker.onmessage=async(e)=>{if(e.data.type==='error'){stop();setError(typeof e.data.error==='string'?e.data.error:JSON.stringify(e.data.error));return;}if(e.data.type!=='result')return;stop();const r=e.data.report as RunReport;setReport(r);setReportContract(snapshot);const entry={id:r.id,contract:snapshot,report:r};if(!user)setLocalRuns(prev=>{const next=[entry,...prev].slice(0,20);try{localStorage.setItem(storageKey,JSON.stringify(next));}catch{setNotice('Browser storage is full. Export this evidence packet to keep it.');}return next;});if(user){try{await api('/runs',{method:'POST',body:JSON.stringify({contract:snapshot,report:r})});const data=await api('/runs');setCloudRuns(Array.isArray(data)?data:data.runs||[]);}catch(err){setNotice(`Run completed locally. Workspace save failed: ${(err as Error).message}`);}}};worker.postMessage(snapshot);}
- function cancel(){workerRef.current?.terminate();workerRef.current=null;if(timeoutRef.current)clearTimeout(timeoutRef.current);setRunning(false);setNotice('Rehearsal cancelled. No report was saved.');}
- async function importFile(file?:File){if(!file)return;try{if(file.size>1024*1024)throw new Error('Contract files must be smaller than 1 MB.');const parsed=JSON.parse(await file.text());const json=parsed?.contract??parsed;if(!validContract(json))throw new Error('Invalid release contract. Include all eight SQL fields, id, name, description, migrationName, and a tags array.');choose(json);setNotice('Contract imported. Review the SQL, then run a rehearsal.');}catch(e){setError((e as Error).message);}if(fileRef.current)fileRef.current.value='';}
- async function submitAuth(e:React.FormEvent<HTMLFormElement>){e.preventDefault();const form=new FormData(e.currentTarget);setAuthBusy(true);setAuthError('');try{const d=await api('/auth/'+auth,{method:'POST',body:JSON.stringify(Object.fromEntries(form))});setUser(d.user);setAuth(null);setNotice('Your workspace is ready. New rehearsals will also save to your account.');}catch(e){setAuthError((e as Error).message);}finally{setAuthBusy(false);}}
- const failed=report?.checks.filter(c=>c.status==='failed').length||0;const passed=report?.checks.filter(c=>c.status==='passed').length||0;const stale=!!reportContract&&JSON.stringify(reportContract)!==JSON.stringify(contract); const exportContract=reportContract||contract;
- return <div className="app-shell"><aside className="sidebar"><a className="brand" href="#" onClick={e=>{e.preventDefault();setTab('overview');}}><span className="brand-icon"><RotateCcw size={22}/></span>UndoProof<span className="brand-period">.</span></a><div className="workspace-label">WORKSPACE <span>01</span></div><div className="workspace-identity"><span className="avatar">{user?.name?.slice(0,1)||'S'}</span><div><strong>{user?user.name:'Sandbox workspace'}</strong><small>{user?'Private account':'Local-first · no credentials'}</small></div></div><nav aria-label="Main navigation"><button className={tab==='overview'?'nav-link active':'nav-link'} onClick={()=>setTab('overview')}><FlaskConical size={18}/>Rehearsal lab<span className="nav-dot"/></button><button className={tab==='contract'?'nav-link active':'nav-link'} onClick={()=>setTab('contract')}><Code2 size={18}/>Release contract</button><button className={tab==='history'?'nav-link active':'nav-link'} onClick={()=>setTab('history')}><History size={18}/>Run history<span className="nav-count">{localRuns.length}</span></button></nav><div className="sidebar-note"><div className="tiny-label"><Database size={14}/> REAL POSTGRES, IN YOUR BROWSER</div><p>Break the migration.<br/>Keep your database.</p><small>Isolated PGlite environments.<br/>Synthetic data. Zero production access.</small></div><div className="sidebar-bottom"><div className="engine-status"><span/> PGlite / WASM engine</div>{user?<button className="account-link" disabled={running} onClick={async()=>{try{await api('/auth/logout',{method:'POST'});setUser(null);setContract(structuredClone(contracts[0]));setReport(null);setReportContract(null);setSelected(null);setError('');setNotice('');}catch(e){setError((e as Error).message);}}}><LogOut size={15}/>Sign out</button>:<button className="account-link" onClick={()=>{setAuth('login');setAuthError('');}}><LockKeyhole size={15}/>Sign in to a workspace<ArrowUpRight size={14}/></button>}<small>Built by Shivam Gupta · IBM Bob 2.0</small></div></aside>
- <main><header className="topbar"><div className="breadcrumb">Workspace <ChevronRight size={13}/><strong>{tab==='overview'?'Rehearsal lab':tab==='contract'?'Release contract':'Run history'}</strong></div><div className="topbar-right"><span className="local-badge"><span/>{user?'ACCOUNT CONNECTED':'RUNS LOCALLY'}</span><a href="https://github.com/shi1720/ibm-bob" target="_blank" rel="noreferrer" className="source-link">Source <ArrowUpRight size={14}/></a></div></header>
- <div className="main-content"><div className="page-heading"><div><div className="eyebrow">DEPLOYMENT CONFIDENCE, WITH RECEIPTS</div><h1>{tab==='overview'?'Prove the way back.':tab==='contract'?'Make your assumptions executable.':'Every rehearsal. Every receipt.'}</h1><p>{tab==='overview'?'Your migration works. But does your rollback?':tab==='contract'?'Define what must keep working—and what must never disappear.':'Measured outcomes, saved with the exact SQL that produced them.'}</p></div><button className="button subtle import-button" onClick={()=>fileRef.current?.click()} disabled={running}><Upload size={16}/>Import contract</button><input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={e=>importFile(e.target.files?.[0])}/></div>
- {error&&<div className="alert error" role="alert"><XCircle size={18}/><span>{error}</span><button aria-label="Dismiss error" onClick={()=>setError('')}><X size={16}/></button></div>}{notice&&<div className="alert" role="status"><Info size={18}/><span>{notice}</span><button aria-label="Dismiss notice" onClick={()=>setNotice('')}><X size={16}/></button></div>}
- {tab!=='history'&&<section className="project-bar"><div className="project-icon"><GitBranch size={22}/></div><div className="project-info"><div className="tiny-label">RELEASE CONTRACT</div><h2>{contract.name}</h2><span className="mono">{contract.migrationName}</span></div><div className="example-picker"><button className="button subtle" aria-expanded={examplesOpen} onClick={()=>setExamplesOpen(v=>!v)} disabled={running}>Try a scenario <ChevronDown size={15}/></button>{examplesOpen&&<div className="example-menu">{contracts.map(c=><button key={c.id} onClick={()=>choose(c)}><strong>{c.name}</strong><small>{c.description}</small>{c.id===contract.id&&<Check size={15}/>}</button>)}</div>}</div><button className="button primary run-button" disabled={running} onClick={()=>run()}>{running?<LoaderCircle size={17} className="spin"/>:<Play size={16} fill="currentColor"/>}{running?'Rehearsing…':'Run rehearsal'}<span className="keycap">↵</span></button></section>}
- {tab==='overview'&&<><div className="overview-grid"><section aria-live="polite" aria-busy={running} className={`verdict-card ${report?.status==='passed'&&!stale?'passed':report?.status==='blocked'&&!stale?'blocked':''}`}><div className="card-topline"><span className="tiny-label">RELEASE VERDICT</span><span className="pill">{running?'EXECUTING':stale?'CONTRACT CHANGED':report?.status==='error'?'ENGINE ERROR':report?'REHEARSAL COMPLETE':'AWAITING REHEARSAL'}</span></div><div className="verdict-symbol">{running?<LoaderCircle className="spin" size={32}/>:report?.status==='passed'&&!stale?<ShieldCheck size={34}/>:report&&!stale?<X size={34}/>:<RotateCcw size={34}/>}</div><h2>{running?'Testing the way back.':stale?'Ready for another take.':report?.status==='passed'?'Safe within this contract.':report?.status==='blocked'?'Stop. Your rollback breaks.':report?.status==='error'?'Rehearsal could not complete.':'A green deploy isn’t enough.'}</h2><p>{running?'Executing SQL in isolated PostgreSQL databases. Old app. New app. Rollback. Customer data.':stale?'The SQL has changed since this report. Run again to evaluate the current contract.':report?report.summary:'Test mixed-version compatibility and prove that customer data survives a rollback.'}</p><div className="verdict-footer">{running?<><span className="mono">{formatTime(elapsed)} / 30 s limit</span><button className="text-button" onClick={cancel}>Cancel run <X size={13}/></button></>:report?<><span><Clock3 size={14}/>{formatTime(report.durationMs)}</span><span className="mono">{passed}/{report.checks.length} checks passed</span></>:<><span><Database size={14}/>Real SQL execution</span><span>No API key needed</span></>}</div></section>
- <section className="journey-card"><div className="card-topline"><span className="tiny-label">THE FAILURE MOST TEAMS MISS</span><span className="small-orange">ROLLBACK ≠ RESTORE</span></div><h2>What happens to the orders<br/>placed after you deploy?</h2><div className="journey"><div><span className="journey-node"><Database size={19}/></span><strong>Deploy</strong><small>Schema changes</small></div><span className="journey-line"/><div><span className="journey-node orange"><Plus size={20}/></span><strong>Customers write</strong><small>New data arrives</small></div><span className="journey-line"/><div><span className="journey-node"><RotateCcw size={19}/></span><strong>Roll back</strong><small>Does it survive?</small></div></div><div className="journey-bottom"><Info size={16}/><span>A successful DOWN migration can still delete customer data. We compare the actual rows.</span></div></section></div>
- <section className="matrix panel"><div className="section-heading"><div><div className="tiny-label">EXECUTABLE EVIDENCE</div><h2>Compatibility matrix <span className="count-badge">{report?.checks.length||'—'}</span></h2></div><span className="muted small">{report?'Select a check to inspect its evidence':'Independent checks. Fresh database branches.'}</span></div><div className="matrix-table"><div className="matrix-head"><span>CONTRACT CHECK</span><span>OUTCOME</span><span>RUNTIME</span><span/></div>{report?report.checks.map((c,i)=><button className="check-row" key={c.id} onClick={()=>setSelected(c)}><span className="check-name"><span className="row-number">{String(i+1).padStart(2,'0')}</span>{c.name}</span><span className={'status '+c.status}>{c.status==='passed'?<CheckCircle2 size={15}/>:c.status==='failed'?<XCircle size={15}/>:<Circle size={15}/>} {c.status==='failed'?'Failed':c.status==='passed'?'Passed':'Skipped'}</span><span className="mono muted">{formatTime(c.durationMs)}</span><ChevronRight size={16}/></button>):['Old application on baseline','New application after deployment','Old application on the new schema','Rollback preserves customer data','Application recovery & redeployment'].map((name,i)=><div className="check-row pending-row" key={name}><span className="check-name"><span className="row-number">{String(i+1).padStart(2,'0')}</span>{name}</span><span className="status pending"><Circle size={13}/>{running?'Running':'Not run'}</span><span className="mono muted">—</span><span/></div>)}</div><div className="matrix-footer"><span><span className="live-dot"/>{report?`${report.engine} · ${new Date(report.startedAt).toLocaleString()}`:'Runs entirely in your browser. SQL stays on this device in guest mode.'}</span>{report&&<button className="text-button" onClick={()=>download(`undoproof-${report.id}.json`,JSON.stringify({contract:exportContract,report},null,2),'application/json')}>Export evidence <ArrowDownToLine size={15}/></button>}</div></section>
- <div className="bottom-grid"><section className="next-step panel"><div className="icon-tile"><Sparkles size={21}/></div><div><div className="tiny-label">FROM FAILED CHECK TO VERIFIED FIX</div><h3>{contract.repair?'Rehearse a safer alternative.':'Bring the evidence to IBM Bob.'}</h3><p>{contract.repair?'Review the proposed SQL before applying it. Then rerun the same checks.':'Give Bob the exact contract and failure evidence to investigate in your repository.'}</p><div className="button-row">{contract.repair&&<button className="button dark" onClick={()=>setRepair(true)} disabled={running}>Review repair <ArrowRight size={15}/></button>}<button className="button subtle" onClick={()=>download('bob-repair-prompt.md',repairPrompt(contract,stale?null:report))}>Bob handoff <ArrowDownToLine size={15}/></button></div></div></section><section className="scope-card"><div className="tiny-label"><Info size={14}/> KNOW WHAT THIS PROVES</div><p>Evidence for your supplied SQL contract.<br/>Not a production-parity guarantee.</p><small>PGlite does not reproduce production locks, concurrent traffic, every extension, or full application behavior. Preservation covers your invariant’s rows and columns. Successful queries do not prove business semantics. Add release-specific assertions.</small></section></div>{report&&<div className="evidence-export"><span className="mono">CONTRACT SHA-256 <span title={report.contractHash}>{report.contractHash.slice(0,20)}…</span></span><button className="text-button" onClick={()=>download(`undoproof-${report.id}.md`,markdown(report,exportContract))}><FileText size={15}/>Download Markdown report</button></div>}</>}
- {tab==='contract'&&<section className="contract-editor panel"><div className="editor-meta"><label>Contract name<input value={contract.name} onChange={e=>update('name',e.target.value)} disabled={running}/></label><label>Migration filename<input className="mono" value={contract.migrationName} onChange={e=>update('migrationName',e.target.value)} disabled={running}/></label><label className="full">Description<textarea value={contract.description} onChange={e=>update('description',e.target.value)} disabled={running} rows={2}/></label></div><div className="sql-editor-layout"><div className="sql-tabs" role="tablist" aria-label="SQL contract stages">{SQL_FIELDS.map(([key,title])=><button role="tab" aria-selected={sqlField===key} key={key} onClick={()=>setSqlField(key)} className={sqlField===key?'active':''}>{title}<ChevronRight size={14}/></button>)}</div><div className="sql-pane"><div className="sql-caption"><div><strong>{SQL_FIELDS.find(f=>f[0]===sqlField)?.[1]}</strong><p>{SQL_FIELDS.find(f=>f[0]===sqlField)?.[2]}</p></div><span className="pill">PostgreSQL</span></div><textarea className="sql-textarea" aria-label={sqlField} value={contract[sqlField]} spellCheck={false} onChange={e=>update(sqlField,e.target.value)} disabled={running}/><div className="sql-footer"><span>SQL executes locally in an isolated worker. Use synthetic data only.</span><button className="text-button" onClick={()=>download(`${contract.id}.json`,JSON.stringify(contract,null,2),'application/json')}><FileJson size={14}/>Export contract</button></div></div></div></section>}
- {tab==='history'&&<><section className="panel history-panel"><div className="section-heading"><div><div className="tiny-label">THIS BROWSER · LATEST 20 RUNS</div><h2>Local rehearsal history</h2></div><span className="pill">{localRuns.length} saved</span></div>{localRuns.length?localRuns.map(r=><HistoryRow key={r.id} run={r} onOpen={()=>{setContract(r.contract);setReport(r.report);setReportContract(r.contract);setTab('overview');}} onDelete={()=>{const next=localRuns.filter(x=>x.id!==r.id);setLocalRuns(next);localStorage.setItem(storageKey,JSON.stringify(next));}}/>):<div className="empty-state"><History size={34}/><h3>Your first rehearsal starts here.</h3><p>Run a contract to save its verdict, SQL and evidence on this device.</p><button className="button primary" onClick={()=>setTab('overview')}>Go to rehearsal lab <ArrowRight size={15}/></button></div>}<div className="panel-footnote">Browser storage is specific to this device and can be cleared. Export important evidence.</div></section><section className="panel history-panel"><div className="section-heading"><div><div className="tiny-label">ACCOUNT WORKSPACE</div><h2>{user?'Private saved runs':'Keep a private workspace.'}</h2></div><LockKeyhole size={22}/></div>{user?(cloudRuns.length?cloudRuns.map(r=><HistoryRow key={r.id} run={r} onOpen={()=>{setContract(r.contract);setReport(r.report);setReportContract(r.contract);setTab('overview');}} onDelete={async()=>{try{await api('/runs/'+encodeURIComponent(r.id),{method:'DELETE'});setCloudRuns(cloudRuns.filter(x=>x.id!==r.id));}catch(e){setError((e as Error).message);}}}/>):<p className="empty-caption">New rehearsals will appear here after you run them while signed in.</p>):<div className="account-description"><p>The self-hosted server adds account access and persisted reports. Guest rehearsals need no account or external service.</p><button className="button dark" onClick={()=>{setAuth('register');setAuthError('');}}>Create workspace <ArrowUpRight size={15}/></button></div>}</section></>}
- <footer className="page-footer"><span>UndoProof <span className="orange-text">/</span> Prove it before you ship it.</span><span>Original synthetic fixtures · MIT licensed</span></footer></div></main>
- {selected&&<div className="modal-overlay" onClick={()=>setSelected(null)}><section className="evidence-modal" role="dialog" aria-modal="true" aria-label="Check evidence" onClick={e=>e.stopPropagation()}><button className="modal-close" aria-label="Close evidence" onClick={()=>setSelected(null)}><X size={21}/></button><div className="tiny-label">INSPECT THE RECEIPT</div><h2>{selected.name}</h2><div className="button-row"><span className={'status '+selected.status}>{selected.status==='passed'?<CheckCircle2 size={15}/>:<XCircle size={15}/>} {selected.status}</span><span className="mono muted">{formatTime(selected.durationMs)}</span></div><p className="evidence-detail">{selected.detail}</p>{selected.error&&<div className="sql-error"><strong>PostgreSQL error</strong><pre>{selected.error}</pre></div>}{selected.sql&&<><h3>Executed SQL</h3><pre className="code-block">{selected.sql}</pre></>}{(selected.before||selected.after)&&<div className="row-comparison"><div><h3>{selected.id==='preservation'?'Before rollback':'Before this step'} <span>{selected.before?.length??0} rows</span></h3><pre className="code-block">{JSON.stringify(selected.before??[],null,2)}</pre></div><div><h3>{selected.id==='preservation'?'After rollback':'After this step'} <span>{selected.after?.length??0} rows</span></h3><pre className="code-block">{JSON.stringify(selected.after??[],null,2)}</pre></div></div>}<p className="small muted">This evidence applies to the contract captured in this run.</p></section></div>}
- {repair&&contract.repair&&<div className="modal-overlay" onClick={()=>setRepair(false)}><section className="repair-modal" role="dialog" aria-modal="true" aria-label="Review proposed repair" onClick={e=>e.stopPropagation()}><button className="modal-close" aria-label="Close repair" onClick={()=>setRepair(false)}><X size={21}/></button><div className="tiny-label">PROPOSED REPAIR · REVIEW BEFORE APPLYING</div><h2>Keep the data.<br/>Change the rollback.</h2><p>{contract.repair.summary}</p>{Object.entries(contract.repair).filter(([k])=>k!=='summary').map(([k,v])=><div key={k}><h3>{k}</h3><pre className="code-block">{v}</pre></div>)}<div className="repair-actions"><span>Applying changes the current contract.</span><button className="button primary" onClick={()=>{const {summary,...fields}=contract.repair!;const next={...contract,...fields};setContract(next);setRepair(false);run(next);}}>Apply & rehearse <Play size={16}/></button></div></section></div>}
- {auth&&<div className="modal-overlay" onClick={()=>setAuth(null)}><section className="auth-modal" role="dialog" aria-modal="true" aria-label={auth==='login'?'Sign in':'Create workspace'} onClick={e=>e.stopPropagation()}><button className="modal-close" aria-label="Close sign in" onClick={()=>setAuth(null)}><X size={21}/></button><div className="brand-icon"><RotateCcw size={24}/></div><div className="tiny-label">YOUR PRIVATE WORKSPACE</div><h2>{auth==='login'?'Welcome back.':'Keep your receipts.'}</h2><p>Save rehearsal reports to your self-hosted account.</p>{accountsAvailable===false?<div className="account-unavailable"><Info size={22}/><h3>You’re in the browser demo.</h3><p>Accounts are available when you run the included self-hosted server. Every SQL rehearsal, repair and evidence export works here without signing in.</p><a className="button dark" href="https://github.com/shi1720/ibm-bob#quick-start" target="_blank" rel="noreferrer">Self-hosting instructions <ArrowUpRight size={15}/></a><button className="button subtle" onClick={()=>setAuth(null)}>Continue in guest mode</button></div>:<><form onSubmit={submitAuth}>{auth==='register'&&<label>Name<input name="name" autoComplete="name" required maxLength={100}/></label>}<label>Email<input name="email" type="email" autoComplete="email" required maxLength={254}/></label><label>Password<input name="password" type="password" autoComplete={auth==='login'?'current-password':'new-password'} required minLength={auth==='register'?12:1} maxLength={128}/></label>{auth==='register'&&<small className="muted">Use at least 12 characters.</small>}{authError&&<div className="alert error" role="alert">{authError}</div>}<button className="button primary" type="submit" disabled={authBusy}>{authBusy?<LoaderCircle className="spin" size={16}/>:null}{auth==='login'?'Sign in':'Create workspace'}<ArrowRight size={16}/></button></form><button className="auth-switch text-button" onClick={()=>{setAuth(auth==='login'?'register':'login');setAuthError('');}}>{auth==='login'?'New here? Create a workspace':'Already have an account? Sign in'}</button></>}<small className="auth-footnote">Guest mode runs the same SQL engine. Accounts are optional and require the included server.</small></section></div>}
- </div>;
+function loadRuns(): SavedRun[] {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey) || '[]')
+      .filter((r: SavedRun) => r.report?.checks && r.contract?.id)
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
 }
-function HistoryRow({run:r,onOpen,onDelete}:{run:SavedRun;onOpen:()=>void;onDelete:()=>void}){return <div className="history-row"><button onClick={onOpen} className="history-open"><span className={'history-icon '+r.report.status}>{r.report.status==='passed'?<CheckCircle2 size={20}/>:<XCircle size={20}/>}</span><span><strong>{r.report.contractName}</strong><small>{new Date(r.report.startedAt).toLocaleString()} · {formatTime(r.report.durationMs)}</small></span><span className={'status '+(r.report.status==='passed'?'passed':'failed')}>{r.report.status}</span><ChevronRight size={16}/></button><button className="icon-button" aria-label={'Delete run '+r.report.contractName} onClick={onDelete}><Trash2 size={16}/></button></div>}
+function download(name: string, text: string, type = 'text/plain') {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function markdown(report: RunReport, contract: ReleaseContract) {
+  return `# UndoProof · ${report.contractName}\n\nVerdict: **${report.status.toUpperCase()}**\n\n${report.summary}\n\n- Run: ${report.id}\n- Started: ${report.startedAt}\n- Engine: ${report.engine}\n- Contract hash: ${report.contractHash}\n- Runtime: ${report.durationMs}ms\n\n${report.checks.map((c) => `## ${c.status.toUpperCase()} · ${c.name}\n\n${c.detail}\n\n${c.sql ? '\`\`\`sql\n' + c.sql + '\n\`\`\`\n' : ''}${c.error ? 'Error: ' + c.error + '\n' : ''}${c.before ? (c.id === 'preservation' ? 'Before rollback:' : 'Before this step:') + '\n\`\`\`json\n' + JSON.stringify(c.before, null, 2) + '\n\`\`\`\n' : ''}${c.after ? (c.id === 'preservation' ? 'After rollback:' : 'After this step:') + '\n\`\`\`json\n' + JSON.stringify(c.after, null, 2) + '\n\`\`\`\n' : ''}`).join('\n')}\n## Scope\nSynthetic SQL contracts executed in PGlite. This is not production PostgreSQL parity, full application E2E, or proof of concurrency and locking safety. Read/write query success alone does not establish business semantics.\n\n## Release contract\n\`\`\`json\n${JSON.stringify(contract, null, 2)}\n\`\`\`\n`;
+}
+function repairPrompt(contract: ReleaseContract, report: RunReport | null) {
+  return `You are reviewing a PostgreSQL deployment in IBM Bob IDE. Inspect this release contract and the repository. Repair the migration so old and new applications remain compatible and rollback preserves ALL preexisting and post-deploy writes. Prefer expand-contract changes and non-destructive rollback. Do not weaken invariants or remove fixtures to make checks pass. Explain tradeoffs and run UndoProof again.\n\nCONTRACT\n${JSON.stringify(contract, null, 2)}\n\nACTUAL REHEARSAL REPORT\n${report ? JSON.stringify(report, null, 2) : 'No rehearsal has been run yet.'}\n\nUse parallel focused analysis where helpful: compatibility, data preservation, and independent verification. Record genuine task summary screenshots in bob_sessions after completing the work.`;
+}
+function validContract(value: unknown): value is ReleaseContract {
+  return contractSchema.safeParse(value).success;
+}
+async function api(path: string, options?: RequestInit) {
+  const res = await fetch('/api' + path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+  });
+  if (res.status === 204) return {};
+  const type = res.headers.get('content-type') || '';
+  if (!type.includes('application/json'))
+    throw new Error(
+      'Accounts are available with the self-hosted server. This browser demo remains fully usable without signing in.',
+    );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || 'The request could not be completed.');
+  return data;
+}
+const formatTime = (ms: number) =>
+  ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
+export default function App() {
+  const [contract, setContract] = useState<ReleaseContract>(() => structuredClone(contracts[0]));
+  const [report, setReport] = useState<RunReport | null>(null);
+  const [reportContract, setReportContract] = useState<ReleaseContract | null>(null);
+  const [tab, setTab] = useState<Tab>('overview');
+  const [running, setRunning] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [selected, setSelected] = useState<CheckResult | null>(null);
+  const [localRuns, setLocalRuns] = useState<SavedRun[]>(loadRuns);
+  const [cloudRuns, setCloudRuns] = useState<SavedRun[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [auth, setAuth] = useState<'login' | 'register' | null>(null);
+  const [accountsAvailable, setAccountsAvailable] = useState<boolean | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [settings, setSettings] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [repair, setRepair] = useState(false);
+  const [sqlField, setSqlField] = useState<(typeof SQL_FIELDS)[number][0]>('upSql');
+  const [examplesOpen, setExamplesOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    api('/auth/me')
+      .then((d) => {
+        setAccountsAvailable(true);
+        if (d.user) setUser(d.user);
+      })
+      .catch(() => setAccountsAvailable(false));
+    return () => {
+      workerRef.current?.terminate();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+  useEffect(() => {
+    if (user)
+      api('/runs')
+        .then((d) => setCloudRuns(Array.isArray(d) ? d : d.runs || []))
+        .catch((e) => setNotice(e.message));
+    else setCloudRuns([]);
+  }, [user]);
+  useEffect(() => {
+    if (!running) return;
+    const start = Date.now();
+    setElapsed(0);
+    const timer = setInterval(() => setElapsed(Date.now() - start), 100);
+    return () => clearInterval(timer);
+  }, [running]);
+  useEffect(() => {
+    if (!auth && !selected && !repair && !settings) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const modal = document.querySelector<HTMLElement>('[role=dialog]');
+    const focusable = () =>
+      Array.from(
+        modal?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input, textarea, a[href], [tabindex="0"]',
+        ) || [],
+      );
+    focusable()[0]?.focus();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setAuth(null);
+        setSelected(null);
+        setRepair(false);
+        setSettings(false);
+      }
+      if (e.key === 'Tab') {
+        const items = focusable();
+        const first = items[0],
+          last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', listener);
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', listener);
+      document.body.style.overflow = oldOverflow;
+      previous?.focus();
+    };
+  }, [auth, selected, repair, settings]);
+  function choose(c: ReleaseContract) {
+    if (running) return;
+    setContract(structuredClone(c));
+    setReport(null);
+    setReportContract(null);
+    setSelected(null);
+    setError('');
+    setNotice('');
+    setExamplesOpen(false);
+    setTab('overview');
+  }
+  function update(field: keyof ReleaseContract, value: string) {
+    setContract((c) => ({ ...c, [field]: value }));
+  }
+  async function run(c: ReleaseContract = contract) {
+    if (running) return;
+    setRunning(true);
+    setError('');
+    setNotice('');
+    setReport(null);
+    setSelected(null);
+    setTab('overview');
+    const snapshot = structuredClone(c);
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('./engine/worker.ts', import.meta.url), { type: 'module' });
+    } catch (e) {
+      setRunning(false);
+      setError('The isolated SQL worker could not start: ' + (e as Error).message);
+      return;
+    }
+    workerRef.current = worker;
+    const stop = () => {
+      worker.terminate();
+      workerRef.current = null;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setRunning(false);
+    };
+    timeoutRef.current = setTimeout(() => {
+      stop();
+      setError(
+        'Rehearsal stopped after 30 seconds. Check for long-running SQL or an oversized fixture. The isolated worker was terminated.',
+      );
+    }, 30000);
+    worker.onerror = (e) => {
+      stop();
+      setError(e.message || 'The SQL worker could not start. Try refreshing the page.');
+    };
+    worker.onmessage = async (e) => {
+      if (e.data.type === 'error') {
+        stop();
+        setError(typeof e.data.error === 'string' ? e.data.error : JSON.stringify(e.data.error));
+        return;
+      }
+      if (e.data.type !== 'result') return;
+      stop();
+      const r = e.data.report as RunReport;
+      setReport(r);
+      setReportContract(snapshot);
+      const entry = { id: r.id, contract: snapshot, report: r };
+      if (!user)
+        setLocalRuns((prev) => {
+          const next = [entry, ...prev].slice(0, 20);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(next));
+          } catch {
+            setNotice('Browser storage is full. Export this evidence packet to keep it.');
+          }
+          return next;
+        });
+      if (user) {
+        try {
+          await api('/runs', {
+            method: 'POST',
+            body: JSON.stringify({ contract: snapshot, report: r }),
+          });
+          const data = await api('/runs');
+          setCloudRuns(Array.isArray(data) ? data : data.runs || []);
+        } catch (err) {
+          setNotice(`Run completed locally. Workspace save failed: ${(err as Error).message}`);
+        }
+      }
+    };
+    worker.postMessage(snapshot);
+  }
+  function cancel() {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setRunning(false);
+    setNotice('Rehearsal cancelled. No report was saved.');
+  }
+  async function importFile(file?: File) {
+    if (!file) return;
+    try {
+      if (file.size > 1024 * 1024) throw new Error('Contract files must be smaller than 1 MB.');
+      const parsed = JSON.parse(await file.text());
+      const json = parsed?.contract ?? parsed;
+      if (!validContract(json))
+        throw new Error(
+          'Invalid release contract. Include all eight SQL fields, id, name, description, migrationName, and a tags array.',
+        );
+      choose(json);
+      setNotice('Contract imported. Review the SQL, then run a rehearsal.');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    if (fileRef.current) fileRef.current.value = '';
+  }
+  function clearPrivateState() {
+    setUser(null);
+    setCloudRuns([]);
+    setContract(structuredClone(contracts[0]));
+    setReport(null);
+    setReportContract(null);
+    setSelected(null);
+    setError('');
+    setNotice('');
+    setSettings(false);
+  }
+  async function signOut() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+      clearPrivateState();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  async function deleteAccount(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await api('/auth/me', {
+        method: 'DELETE',
+        body: JSON.stringify({ password: form.get('password') }),
+      });
+      clearPrivateState();
+      setNotice(
+        'Your account and private workspace runs were deleted. Guest history remains on this device.',
+      );
+    } catch (e) {
+      setDeleteError((e as Error).message);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+  async function submitAuth(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const d = await api('/auth/' + auth, {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(form)),
+      });
+      setUser(d.user);
+      setAuth(null);
+      setNotice('Your workspace is ready. New rehearsals will also save to your account.');
+    } catch (e) {
+      setAuthError((e as Error).message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+  const passed = report?.checks.filter((c) => c.status === 'passed').length || 0;
+  const stale = !!reportContract && JSON.stringify(reportContract) !== JSON.stringify(contract);
+  const exportContract = reportContract || contract;
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <a
+          className="brand"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setTab('overview');
+          }}
+        >
+          <span className="brand-icon">
+            <RotateCcw size={22} />
+          </span>
+          UndoProof<span className="brand-period">.</span>
+        </a>
+        <div className="workspace-label">
+          WORKSPACE <span>01</span>
+        </div>
+        <div className="workspace-identity">
+          <span className="avatar">{user?.name?.slice(0, 1) || 'S'}</span>
+          <div>
+            <strong>{user ? user.name : 'Sandbox workspace'}</strong>
+            <small>{user ? 'Private account' : 'Local-first · no credentials'}</small>
+          </div>
+        </div>
+        <nav aria-label="Main navigation">
+          <button
+            className={tab === 'overview' ? 'nav-link active' : 'nav-link'}
+            onClick={() => setTab('overview')}
+          >
+            <FlaskConical size={18} />
+            Rehearsal lab
+            <span className="nav-dot" />
+          </button>
+          <button
+            className={tab === 'contract' ? 'nav-link active' : 'nav-link'}
+            onClick={() => setTab('contract')}
+          >
+            <Code2 size={18} />
+            Release contract
+          </button>
+          <button
+            className={tab === 'history' ? 'nav-link active' : 'nav-link'}
+            onClick={() => setTab('history')}
+          >
+            <History size={18} />
+            Run history<span className="nav-count">{localRuns.length}</span>
+          </button>
+        </nav>
+        <div className="sidebar-note">
+          <div className="tiny-label">
+            <Database size={14} /> REAL POSTGRES, IN YOUR BROWSER
+          </div>
+          <p>
+            Break the migration.
+            <br />
+            Keep your database.
+          </p>
+          <small>
+            Isolated PGlite environments.
+            <br />
+            Synthetic data. Zero production access.
+          </small>
+        </div>
+        <div className="sidebar-bottom">
+          <div className="engine-status">
+            <span /> PGlite / WASM engine
+          </div>
+          {user ? (
+            <button className="account-link" disabled={running} onClick={signOut}>
+              <LogOut size={15} />
+              Sign out
+            </button>
+          ) : (
+            <button
+              className="account-link"
+              onClick={() => {
+                setAuth('login');
+                setAuthError('');
+              }}
+            >
+              <LockKeyhole size={15} />
+              Sign in to a workspace
+              <ArrowUpRight size={14} />
+            </button>
+          )}
+          <small>Built by Shivam Gupta · IBM Bob 2.0</small>
+        </div>
+      </aside>
+      <main>
+        <header className="topbar">
+          <div className="breadcrumb">
+            Workspace <ChevronRight size={13} />
+            <strong>
+              {tab === 'overview'
+                ? 'Rehearsal lab'
+                : tab === 'contract'
+                  ? 'Release contract'
+                  : 'Run history'}
+            </strong>
+          </div>
+          <div className={'topbar-right' + (user ? ' has-account' : '')}>
+            {user && (
+              <button
+                className="settings-button"
+                aria-label="Account settings"
+                title="Account settings"
+                disabled={running}
+                onClick={() => {
+                  setSettings(true);
+                  setDeleteError('');
+                }}
+              >
+                <Settings2 size={16} />
+                <span>Account</span>
+              </button>
+            )}
+            {user && (
+              <button
+                className="mobile-signout"
+                aria-label="Sign out"
+                title="Sign out"
+                disabled={running}
+                onClick={signOut}
+              >
+                <LogOut size={14} />
+              </button>
+            )}
+            <span className="local-badge">
+              <span />
+              {user ? 'ACCOUNT CONNECTED' : 'RUNS LOCALLY'}
+            </span>
+            <a
+              href="https://github.com/shi1720/ibm-bob"
+              target="_blank"
+              rel="noreferrer"
+              className="source-link"
+            >
+              Source <ArrowUpRight size={14} />
+            </a>
+          </div>
+        </header>
+        <div className="main-content">
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">DEPLOYMENT CONFIDENCE, WITH RECEIPTS</div>
+              <h1>
+                {tab === 'overview'
+                  ? 'Prove the way back.'
+                  : tab === 'contract'
+                    ? 'Make your assumptions executable.'
+                    : 'Every rehearsal. Every receipt.'}
+              </h1>
+              <p>
+                {tab === 'overview'
+                  ? 'Your migration works. But does your rollback?'
+                  : tab === 'contract'
+                    ? 'Define what must keep working—and what must never disappear.'
+                    : 'Measured outcomes, saved with the exact SQL that produced them.'}
+              </p>
+            </div>
+            <button
+              className="button subtle import-button"
+              onClick={() => fileRef.current?.click()}
+              disabled={running}
+            >
+              <Upload size={16} />
+              Import contract
+            </button>
+            <input
+              ref={fileRef}
+              hidden
+              type="file"
+              accept=".json,application/json"
+              onChange={(e) => importFile(e.target.files?.[0])}
+            />
+          </div>
+          {error && (
+            <div className="alert error" role="alert">
+              <XCircle size={18} />
+              <span>{error}</span>
+              <button aria-label="Dismiss error" onClick={() => setError('')}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {notice && (
+            <div className="alert" role="status">
+              <Info size={18} />
+              <span>{notice}</span>
+              <button aria-label="Dismiss notice" onClick={() => setNotice('')}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {tab !== 'history' && (
+            <section className="project-bar">
+              <div className="project-icon">
+                <GitBranch size={22} />
+              </div>
+              <div className="project-info">
+                <div className="tiny-label">RELEASE CONTRACT</div>
+                <h2>{contract.name}</h2>
+                <span className="mono">{contract.migrationName}</span>
+              </div>
+              <div className="example-picker">
+                <button
+                  className="button subtle"
+                  aria-expanded={examplesOpen}
+                  onClick={() => setExamplesOpen((v) => !v)}
+                  disabled={running}
+                >
+                  Try a scenario <ChevronDown size={15} />
+                </button>
+                {examplesOpen && (
+                  <div className="example-menu">
+                    {contracts.map((c) => (
+                      <button key={c.id} onClick={() => choose(c)}>
+                        <strong>{c.name}</strong>
+                        <small>{c.description}</small>
+                        {c.id === contract.id && <Check size={15} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                className="button primary run-button"
+                disabled={running}
+                onClick={() => run()}
+              >
+                {running ? (
+                  <LoaderCircle size={17} className="spin" />
+                ) : (
+                  <Play size={16} fill="currentColor" />
+                )}
+                {running ? 'Rehearsing…' : 'Run rehearsal'}
+                <span className="keycap">↵</span>
+              </button>
+            </section>
+          )}
+          {tab === 'overview' && (
+            <>
+              <div className="overview-grid">
+                <section
+                  aria-live="polite"
+                  aria-busy={running}
+                  className={`verdict-card ${report?.status === 'passed' && !stale ? 'passed' : report?.status === 'blocked' && !stale ? 'blocked' : ''}`}
+                >
+                  <div className="card-topline">
+                    <span className="tiny-label">RELEASE VERDICT</span>
+                    <span className="pill">
+                      {running
+                        ? 'EXECUTING'
+                        : stale
+                          ? 'CONTRACT CHANGED'
+                          : report?.status === 'error'
+                            ? 'ENGINE ERROR'
+                            : report
+                              ? 'REHEARSAL COMPLETE'
+                              : 'AWAITING REHEARSAL'}
+                    </span>
+                  </div>
+                  <div className="verdict-symbol">
+                    {running ? (
+                      <LoaderCircle className="spin" size={32} />
+                    ) : report?.status === 'passed' && !stale ? (
+                      <ShieldCheck size={34} />
+                    ) : report && !stale ? (
+                      <X size={34} />
+                    ) : (
+                      <RotateCcw size={34} />
+                    )}
+                  </div>
+                  <h2>
+                    {running
+                      ? 'Testing the way back.'
+                      : stale
+                        ? 'Ready for another take.'
+                        : report?.status === 'passed'
+                          ? 'Safe within this contract.'
+                          : report?.status === 'blocked'
+                            ? 'Stop. Your rollback breaks.'
+                            : report?.status === 'error'
+                              ? 'Rehearsal could not complete.'
+                              : 'A green deploy isn’t enough.'}
+                  </h2>
+                  <p>
+                    {running
+                      ? 'Executing SQL in isolated PostgreSQL databases. Old app. New app. Rollback. Customer data.'
+                      : stale
+                        ? 'The SQL has changed since this report. Run again to evaluate the current contract.'
+                        : report
+                          ? report.summary
+                          : 'Test mixed-version compatibility and prove that customer data survives a rollback.'}
+                  </p>
+                  <div className="verdict-footer">
+                    {running ? (
+                      <>
+                        <span className="mono">{formatTime(elapsed)} / 30 s limit</span>
+                        <button className="text-button" onClick={cancel}>
+                          Cancel run <X size={13} />
+                        </button>
+                      </>
+                    ) : report ? (
+                      <>
+                        <span>
+                          <Clock3 size={14} />
+                          {formatTime(report.durationMs)}
+                        </span>
+                        <span className="mono">
+                          {passed}/{report.checks.length} checks passed
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          <Database size={14} />
+                          Real SQL execution
+                        </span>
+                        <span>No API key needed</span>
+                      </>
+                    )}
+                  </div>
+                </section>
+                <section className="journey-card">
+                  <div className="card-topline">
+                    <span className="tiny-label">THE FAILURE MOST TEAMS MISS</span>
+                    <span className="small-orange">ROLLBACK ≠ RESTORE</span>
+                  </div>
+                  <h2>
+                    What happens to the orders
+                    <br />
+                    placed after you deploy?
+                  </h2>
+                  <div className="journey">
+                    <div>
+                      <span className="journey-node">
+                        <Database size={19} />
+                      </span>
+                      <strong>Deploy</strong>
+                      <small>Schema changes</small>
+                    </div>
+                    <span className="journey-line" />
+                    <div>
+                      <span className="journey-node orange">
+                        <Plus size={20} />
+                      </span>
+                      <strong>Customers write</strong>
+                      <small>New data arrives</small>
+                    </div>
+                    <span className="journey-line" />
+                    <div>
+                      <span className="journey-node">
+                        <RotateCcw size={19} />
+                      </span>
+                      <strong>Roll back</strong>
+                      <small>Does it survive?</small>
+                    </div>
+                  </div>
+                  <div className="journey-bottom">
+                    <Info size={16} />
+                    <span>
+                      A successful DOWN migration can still delete customer data. We compare the
+                      actual rows.
+                    </span>
+                  </div>
+                </section>
+              </div>
+              <section className="matrix panel">
+                <div className="section-heading">
+                  <div>
+                    <div className="tiny-label">EXECUTABLE EVIDENCE</div>
+                    <h2>
+                      Compatibility matrix{' '}
+                      <span className="count-badge">{report?.checks.length || '—'}</span>
+                    </h2>
+                  </div>
+                  <span className="muted small">
+                    {report
+                      ? 'Select a check to inspect its evidence'
+                      : 'Independent checks. Fresh database branches.'}
+                  </span>
+                </div>
+                <div className="matrix-table">
+                  <div className="matrix-head">
+                    <span>CONTRACT CHECK</span>
+                    <span>OUTCOME</span>
+                    <span>RUNTIME</span>
+                    <span />
+                  </div>
+                  {report
+                    ? report.checks.map((c, i) => (
+                        <button className="check-row" key={c.id} onClick={() => setSelected(c)}>
+                          <span className="check-name">
+                            <span className="row-number">{String(i + 1).padStart(2, '0')}</span>
+                            {c.name}
+                          </span>
+                          <span className={'status ' + c.status}>
+                            {c.status === 'passed' ? (
+                              <CheckCircle2 size={15} />
+                            ) : c.status === 'failed' ? (
+                              <XCircle size={15} />
+                            ) : (
+                              <Circle size={15} />
+                            )}{' '}
+                            {c.status === 'failed'
+                              ? 'Failed'
+                              : c.status === 'passed'
+                                ? 'Passed'
+                                : 'Skipped'}
+                          </span>
+                          <span className="mono muted">{formatTime(c.durationMs)}</span>
+                          <ChevronRight size={16} />
+                        </button>
+                      ))
+                    : [
+                        'Old application on baseline',
+                        'New application after deployment',
+                        'Old application on the new schema',
+                        'Rollback preserves customer data',
+                        'Application recovery & redeployment',
+                      ].map((name, i) => (
+                        <div className="check-row pending-row" key={name}>
+                          <span className="check-name">
+                            <span className="row-number">{String(i + 1).padStart(2, '0')}</span>
+                            {name}
+                          </span>
+                          <span className="status pending">
+                            <Circle size={13} />
+                            {running ? 'Running' : 'Not run'}
+                          </span>
+                          <span className="mono muted">—</span>
+                          <span />
+                        </div>
+                      ))}
+                </div>
+                <div className="matrix-footer">
+                  <span>
+                    <span className="live-dot" />
+                    {report
+                      ? `${report.engine} · ${new Date(report.startedAt).toLocaleString()}`
+                      : 'Runs entirely in your browser. SQL stays on this device in guest mode.'}
+                  </span>
+                  {report && (
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        download(
+                          `undoproof-${report.id}.json`,
+                          JSON.stringify({ contract: exportContract, report }, null, 2),
+                          'application/json',
+                        )
+                      }
+                    >
+                      Export evidence <ArrowDownToLine size={15} />
+                    </button>
+                  )}
+                </div>
+              </section>
+              <div className="bottom-grid">
+                <section className="next-step panel">
+                  <div className="icon-tile">
+                    <Sparkles size={21} />
+                  </div>
+                  <div>
+                    <div className="tiny-label">FROM FAILED CHECK TO VERIFIED FIX</div>
+                    <h3>
+                      {contract.repair
+                        ? 'Rehearse a safer alternative.'
+                        : 'Bring the evidence to IBM Bob.'}
+                    </h3>
+                    <p>
+                      {contract.repair
+                        ? 'Review the proposed SQL before applying it. Then rerun the same checks.'
+                        : 'Give Bob the exact contract and failure evidence to investigate in your repository.'}
+                    </p>
+                    <div className="button-row">
+                      {contract.repair && (
+                        <button
+                          className="button dark"
+                          onClick={() => setRepair(true)}
+                          disabled={running}
+                        >
+                          Review repair <ArrowRight size={15} />
+                        </button>
+                      )}
+                      <button
+                        className="button subtle"
+                        onClick={() =>
+                          download(
+                            'bob-repair-prompt.md',
+                            repairPrompt(contract, stale ? null : report),
+                          )
+                        }
+                      >
+                        Bob handoff <ArrowDownToLine size={15} />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+                <section className="scope-card">
+                  <div className="tiny-label">
+                    <Info size={14} /> KNOW WHAT THIS PROVES
+                  </div>
+                  <p>
+                    Evidence for your supplied SQL contract.
+                    <br />
+                    Not a production-parity guarantee.
+                  </p>
+                  <small>
+                    PGlite does not reproduce production locks, concurrent traffic, every extension,
+                    or full application behavior. Preservation covers your invariant’s rows and
+                    columns. Successful queries do not prove business semantics. Add
+                    release-specific assertions.
+                  </small>
+                </section>
+              </div>
+              {report && (
+                <div className="evidence-export">
+                  <span className="mono">
+                    CONTRACT SHA-256{' '}
+                    <span title={report.contractHash}>{report.contractHash.slice(0, 20)}…</span>
+                  </span>
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      download(`undoproof-${report.id}.md`, markdown(report, exportContract))
+                    }
+                  >
+                    <FileText size={15} />
+                    Download Markdown report
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {tab === 'contract' && (
+            <section className="contract-editor panel">
+              <div className="editor-meta">
+                <label>
+                  Contract name
+                  <input
+                    value={contract.name}
+                    onChange={(e) => update('name', e.target.value)}
+                    disabled={running}
+                  />
+                </label>
+                <label>
+                  Migration filename
+                  <input
+                    className="mono"
+                    value={contract.migrationName}
+                    onChange={(e) => update('migrationName', e.target.value)}
+                    disabled={running}
+                  />
+                </label>
+                <label className="full">
+                  Description
+                  <textarea
+                    value={contract.description}
+                    onChange={(e) => update('description', e.target.value)}
+                    disabled={running}
+                    rows={2}
+                  />
+                </label>
+              </div>
+              <div className="sql-editor-layout">
+                <div className="sql-tabs" role="tablist" aria-label="SQL contract stages">
+                  {SQL_FIELDS.map(([key, title]) => (
+                    <button
+                      role="tab"
+                      aria-selected={sqlField === key}
+                      key={key}
+                      onClick={() => setSqlField(key)}
+                      className={sqlField === key ? 'active' : ''}
+                    >
+                      {title}
+                      <ChevronRight size={14} />
+                    </button>
+                  ))}
+                </div>
+                <div className="sql-pane">
+                  <div className="sql-caption">
+                    <div>
+                      <strong>{SQL_FIELDS.find((f) => f[0] === sqlField)?.[1]}</strong>
+                      <p>{SQL_FIELDS.find((f) => f[0] === sqlField)?.[2]}</p>
+                    </div>
+                    <span className="pill">PostgreSQL</span>
+                  </div>
+                  <textarea
+                    className="sql-textarea"
+                    aria-label={sqlField}
+                    value={contract[sqlField]}
+                    spellCheck={false}
+                    onChange={(e) => update(sqlField, e.target.value)}
+                    disabled={running}
+                  />
+                  <div className="sql-footer">
+                    <span>
+                      SQL executes locally in an isolated worker. Use synthetic data only.
+                    </span>
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        download(
+                          `${contract.id}.json`,
+                          JSON.stringify(contract, null, 2),
+                          'application/json',
+                        )
+                      }
+                    >
+                      <FileJson size={14} />
+                      Export contract
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+          {tab === 'history' && (
+            <>
+              <section className="panel history-panel">
+                <div className="section-heading">
+                  <div>
+                    <div className="tiny-label">THIS BROWSER · LATEST 20 RUNS</div>
+                    <h2>Local rehearsal history</h2>
+                  </div>
+                  <span className="pill">{localRuns.length} saved</span>
+                </div>
+                {localRuns.length ? (
+                  localRuns.map((r) => (
+                    <HistoryRow
+                      key={r.id}
+                      run={r}
+                      onOpen={() => {
+                        setContract(r.contract);
+                        setReport(r.report);
+                        setReportContract(r.contract);
+                        setTab('overview');
+                      }}
+                      onDelete={() => {
+                        const next = localRuns.filter((x) => x.id !== r.id);
+                        setLocalRuns(next);
+                        localStorage.setItem(storageKey, JSON.stringify(next));
+                      }}
+                    />
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <History size={34} />
+                    <h3>Your first rehearsal starts here.</h3>
+                    <p>Run a contract to save its verdict, SQL and evidence on this device.</p>
+                    <button className="button primary" onClick={() => setTab('overview')}>
+                      Go to rehearsal lab <ArrowRight size={15} />
+                    </button>
+                  </div>
+                )}
+                <div className="panel-footnote">
+                  Browser storage is specific to this device and can be cleared. Export important
+                  evidence.
+                </div>
+              </section>
+              <section className="panel history-panel">
+                <div className="section-heading">
+                  <div>
+                    <div className="tiny-label">ACCOUNT WORKSPACE</div>
+                    <h2>{user ? 'Private saved runs' : 'Keep a private workspace.'}</h2>
+                  </div>
+                  <LockKeyhole size={22} />
+                </div>
+                {user ? (
+                  cloudRuns.length ? (
+                    cloudRuns.map((r) => (
+                      <HistoryRow
+                        key={r.id}
+                        run={r}
+                        onOpen={() => {
+                          setContract(r.contract);
+                          setReport(r.report);
+                          setReportContract(r.contract);
+                          setTab('overview');
+                        }}
+                        onDelete={async () => {
+                          try {
+                            await api('/runs/' + encodeURIComponent(r.id), { method: 'DELETE' });
+                            setCloudRuns(cloudRuns.filter((x) => x.id !== r.id));
+                          } catch (e) {
+                            setError((e as Error).message);
+                          }
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <p className="empty-caption">
+                      New rehearsals will appear here after you run them while signed in.
+                    </p>
+                  )
+                ) : (
+                  <div className="account-description">
+                    <p>
+                      The self-hosted server adds account access and persisted reports. Guest
+                      rehearsals need no account or external service.
+                    </p>
+                    <button
+                      className="button dark"
+                      onClick={() => {
+                        setAuth('register');
+                        setAuthError('');
+                      }}
+                    >
+                      Create workspace <ArrowUpRight size={15} />
+                    </button>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+          <footer className="page-footer">
+            <span>
+              UndoProof <span className="orange-text">/</span> Prove it before you ship it.
+            </span>
+            <span>Original synthetic fixtures · MIT licensed</span>
+          </footer>
+        </div>
+      </main>
+      {selected && (
+        <div className="modal-overlay" onClick={() => setSelected(null)}>
+          <section
+            className="evidence-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Check evidence"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close evidence"
+              onClick={() => setSelected(null)}
+            >
+              <X size={21} />
+            </button>
+            <div className="tiny-label">INSPECT THE RECEIPT</div>
+            <h2>{selected.name}</h2>
+            <div className="button-row">
+              <span className={'status ' + selected.status}>
+                {selected.status === 'passed' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}{' '}
+                {selected.status}
+              </span>
+              <span className="mono muted">{formatTime(selected.durationMs)}</span>
+            </div>
+            <p className="evidence-detail">{selected.detail}</p>
+            {selected.error && (
+              <div className="sql-error">
+                <strong>PostgreSQL error</strong>
+                <pre>{selected.error}</pre>
+              </div>
+            )}
+            {selected.sql && (
+              <>
+                <h3>Executed SQL</h3>
+                <pre className="code-block">{selected.sql}</pre>
+              </>
+            )}
+            {(selected.before || selected.after) && (
+              <div className="row-comparison">
+                <div>
+                  <h3>
+                    {selected.id === 'preservation' ? 'Before rollback' : 'Before this step'}{' '}
+                    <span>{selected.before?.length ?? 0} rows</span>
+                  </h3>
+                  <EvidenceRows
+                    rows={selected.before ?? []}
+                    other={selected.after ?? []}
+                    phase="before"
+                  />
+                </div>
+                <div>
+                  <h3>
+                    {selected.id === 'preservation' ? 'After rollback' : 'After this step'}{' '}
+                    <span>{selected.after?.length ?? 0} rows</span>
+                  </h3>
+                  <EvidenceRows
+                    rows={selected.after ?? []}
+                    other={selected.before ?? []}
+                    phase="after"
+                  />
+                </div>
+              </div>
+            )}
+            <p className="small muted">
+              This evidence applies to the contract captured in this run.
+            </p>
+          </section>
+        </div>
+      )}
+      {repair && contract.repair && (
+        <div className="modal-overlay" onClick={() => setRepair(false)}>
+          <section
+            className="repair-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Review proposed repair"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close repair"
+              onClick={() => setRepair(false)}
+            >
+              <X size={21} />
+            </button>
+            <div className="tiny-label">PROPOSED REPAIR · REVIEW BEFORE APPLYING</div>
+            <h2>
+              Keep the data.
+              <br />
+              Change the rollback.
+            </h2>
+            <p>{contract.repair.summary}</p>
+            {Object.entries(contract.repair)
+              .filter(([k]) => k !== 'summary')
+              .map(([k, v]) => (
+                <div key={k}>
+                  <h3>{k}</h3>
+                  <pre className="code-block">{v}</pre>
+                </div>
+              ))}
+            <div className="repair-actions">
+              <span>Applying changes the current contract.</span>
+              <button
+                className="button primary"
+                onClick={() => {
+                  const { summary, ...fields } = contract.repair!;
+                  const next = { ...contract, ...fields };
+                  setContract(next);
+                  setRepair(false);
+                  run(next);
+                }}
+              >
+                Apply & rehearse <Play size={16} />
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {settings && user && (
+        <div className="modal-overlay" onClick={() => !deleteBusy && setSettings(false)}>
+          <section
+            className="auth-modal settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Account settings"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close account settings"
+              disabled={deleteBusy}
+              onClick={() => setSettings(false)}
+            >
+              <X size={21} />
+            </button>
+            <div className="tiny-label">YOUR PRIVATE WORKSPACE</div>
+            <h2>Account settings.</h2>
+            <div className="account-details">
+              <strong>{user.name}</strong>
+              <span>{user.email}</span>
+            </div>
+            <div className="delete-account-section">
+              <h3>Delete your account</h3>
+              <p>
+                This permanently deletes your account, every saved private workspace run, and all
+                active sessions. This cannot be undone. Export any evidence you want to keep first.
+              </p>
+              <p>Guest history stored in this browser will remain.</p>
+              <form onSubmit={deleteAccount}>
+                <label>
+                  Confirm password
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    minLength={12}
+                    maxLength={128}
+                    required
+                    disabled={deleteBusy}
+                  />
+                </label>
+                {deleteError && (
+                  <div className="alert error" role="alert">
+                    {deleteError}
+                  </div>
+                )}
+                <button className="button danger" type="submit" disabled={deleteBusy}>
+                  {deleteBusy ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
+                  Delete account permanently
+                </button>
+              </form>
+            </div>
+          </section>
+        </div>
+      )}
+      {auth && (
+        <div className="modal-overlay" onClick={() => setAuth(null)}>
+          <section
+            className="auth-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={auth === 'login' ? 'Sign in' : 'Create workspace'}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close sign in"
+              onClick={() => setAuth(null)}
+            >
+              <X size={21} />
+            </button>
+            <div className="brand-icon">
+              <RotateCcw size={24} />
+            </div>
+            <div className="tiny-label">YOUR PRIVATE WORKSPACE</div>
+            <h2>{auth === 'login' ? 'Welcome back.' : 'Keep your receipts.'}</h2>
+            <p>Save rehearsal reports to your self-hosted account.</p>
+            {accountsAvailable === false ? (
+              <div className="account-unavailable">
+                <Info size={22} />
+                <h3>You’re in the browser demo.</h3>
+                <p>
+                  Accounts are available when you run the included self-hosted server. Every SQL
+                  rehearsal, repair and evidence export works here without signing in.
+                </p>
+                <a
+                  className="button dark"
+                  href="https://github.com/shi1720/ibm-bob/blob/main/server/README.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Self-hosting instructions <ArrowUpRight size={15} />
+                </a>
+                <button className="button subtle" onClick={() => setAuth(null)}>
+                  Continue in guest mode
+                </button>
+              </div>
+            ) : (
+              <>
+                <form onSubmit={submitAuth}>
+                  {auth === 'register' && (
+                    <label>
+                      Name
+                      <input name="name" autoComplete="name" required maxLength={100} />
+                    </label>
+                  )}
+                  <label>
+                    Email
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      maxLength={254}
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      name="password"
+                      type="password"
+                      autoComplete={auth === 'login' ? 'current-password' : 'new-password'}
+                      required
+                      minLength={auth === 'register' ? 12 : 1}
+                      maxLength={128}
+                    />
+                  </label>
+                  {auth === 'register' && (
+                    <small className="muted">Use at least 12 characters.</small>
+                  )}
+                  {authError && (
+                    <div className="alert error" role="alert">
+                      {authError}
+                    </div>
+                  )}
+                  <button className="button primary" type="submit" disabled={authBusy}>
+                    {authBusy ? <LoaderCircle className="spin" size={16} /> : null}
+                    {auth === 'login' ? 'Sign in' : 'Create workspace'}
+                    <ArrowRight size={16} />
+                  </button>
+                </form>
+                <button
+                  className="auth-switch text-button"
+                  onClick={() => {
+                    setAuth(auth === 'login' ? 'register' : 'login');
+                    setAuthError('');
+                  }}
+                >
+                  {auth === 'login'
+                    ? 'New here? Create a workspace'
+                    : 'Already have an account? Sign in'}
+                </button>
+              </>
+            )}
+            <small className="auth-footnote">
+              Guest mode runs the same SQL engine. Accounts are optional and require the included
+              server.
+            </small>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+function HistoryRow({
+  run: r,
+  onOpen,
+  onDelete,
+}: {
+  run: SavedRun;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="history-row">
+      <button onClick={onOpen} className="history-open">
+        <span className={'history-icon ' + r.report.status}>
+          {r.report.status === 'passed' ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+        </span>
+        <span>
+          <strong>{r.report.contractName}</strong>
+          <small>
+            {new Date(r.report.startedAt).toLocaleString()} · {formatTime(r.report.durationMs)}
+          </small>
+        </span>
+        <span className={'status ' + (r.report.status === 'passed' ? 'passed' : 'failed')}>
+          {r.report.status}
+        </span>
+        <ChevronRight size={16} />
+      </button>
+      <button
+        className="icon-button"
+        aria-label={'Delete run ' + r.report.contractName}
+        onClick={onDelete}
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  );
+}
+
+function EvidenceRows({
+  rows,
+  other,
+  phase,
+}: {
+  rows: unknown[];
+  other: unknown[];
+  phase: 'before' | 'after';
+}) {
+  const previewRows = rows.slice(0, 100);
+  const previewNotice =
+    rows.length > 100 ? (
+      <div className="preview-notice">
+        Showing first 100 of {rows.length.toLocaleString()} rows. Counts and comparisons use all
+        rows; Export evidence includes the full data.
+      </div>
+    ) : null;
+  const objects = rows.every(
+    (row) => row !== null && typeof row === 'object' && !Array.isArray(row),
+  );
+  if (!objects)
+    return (
+      <div>
+        {previewNotice}
+        <pre className="code-block">{JSON.stringify(previewRows, null, 2)}</pre>
+      </div>
+    );
+  const columns = Array.from(
+    new Set(rows.flatMap((row) => Object.keys(row as Record<string, unknown>))),
+  );
+  if (!rows.length) return <div className="empty-rows">No rows returned.</div>;
+  const canonical = (row: unknown) =>
+    JSON.stringify(
+      row && typeof row === 'object'
+        ? Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b)))
+        : row,
+    );
+  // Compare multiplicities as well as values: losing one duplicate is still data loss.
+  const remaining = new Map<string | undefined, number>();
+  for (const row of other) {
+    const key = canonical(row);
+    remaining.set(key, (remaining.get(key) ?? 0) + 1);
+  }
+  const differences = rows.map((row) => {
+    const key = canonical(row);
+    const count = remaining.get(key) ?? 0;
+    if (count > 0) {
+      remaining.set(key, count - 1);
+      return false;
+    }
+    return true;
+  });
+  return (
+    <div className="data-table-wrap">
+      {previewNotice}
+      <table className="data-table">
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {previewRows.map((row, i) => (
+            <tr key={i} className={differences[i] ? 'row-different ' + phase : ''}>
+              {columns.map((c) => (
+                <td key={c}>
+                  {(row as Record<string, unknown>)[c] === null ? (
+                    <em>NULL</em>
+                  ) : (
+                    String(
+                      typeof (row as Record<string, unknown>)[c] === 'object'
+                        ? JSON.stringify((row as Record<string, unknown>)[c])
+                        : (row as Record<string, unknown>)[c],
+                    )
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {differences.some(Boolean) && (
+        <div className="diff-legend">
+          <span />
+          {phase === 'before'
+            ? 'Rows missing or changed afterward: ' +
+              differences.filter(Boolean).length +
+              '. Highlighted where visible.'
+            : 'New or changed rows: ' +
+              differences.filter(Boolean).length +
+              '. Highlighted where visible.'}
+        </div>
+      )}
+    </div>
+  );
+}

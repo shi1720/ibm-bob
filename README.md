@@ -1,13 +1,15 @@
 # UndoProof
 ### Your release passed. Will your rollback?
 
-**Executable PostgreSQL rollback rehearsals, built by Shivam Gupta with IBM Bob.**
+**Executable PostgreSQL rollback rehearsals by Shivam Gupta. Designed for an evidence-driven IBM Bob workflow.**
 
 A migration adds an order-status column. The new checkout works. Then the release is rolled back by restoring a pre-release table snapshot. The rollback command succeeds. The latest customer order has disappeared.
 
 UndoProof catches that failure **before deployment**. It runs your SQL contracts in disposable PostgreSQL databases, tests old and new application queries, writes data after deployment, executes the rollback plan, and compares exact business-data results. A green forward test is only the beginning.
 
 ## Try it
+
+[Open the live browser demo](https://shi1720.github.io/ibm-bob/) · [Account-enabled deployment guide](server/README.md)
 
 Requires Node.js 22.12+ and npm. No Docker, cloud database, AI API key, or production credentials needed for a rehearsal.
 
@@ -66,7 +68,7 @@ Exit codes: **0** all checks passed; **1** release blocked; **2** invalid input,
 4. Give the evidence to Bob. Review its candidate migration or application changes.
 5. Rehearse again. Keep the exact report with the PR.
 
-Bob is the development and repair partner; deterministic PostgreSQL execution decides the gate. Built-in sample repairs are explicit authored examples, not live model calls. Custom repairs use the exported Bob prompt. See `bob_sessions/` for actual IDE evidence and `docs/BOB-WORKFLOW.md` for repeatable prompts.
+The intended workflow uses Bob as the development and repair partner; deterministic PostgreSQL execution decides the gate. Built-in sample repairs are explicit authored examples, not live model calls. Custom repairs use the exported Bob prompt. See `bob_sessions/` for the current IDE evidence status and `docs/BOB-WORKFLOW.md` for repeatable prompts.
 
 ## Architecture
 
@@ -91,7 +93,7 @@ The engine creates independent databases for compatibility checks, preventing on
 
 UndoProof is a working release-rehearsal product with tested account isolation and real PostgreSQL execution. It is **not a production-safety certification**. PGlite is embedded PostgreSQL compiled to WebAssembly, with a single connection. It does not reproduce production concurrency, lock contention, all extensions, privileges, replication, data volume, or application HTTP behavior. Run separate staging and load tests for those risks. Synthetic fixtures and SQL contracts must represent your important paths.
 
-The browser engine has no network database connection. Inputs and output are size bounded, but a Web Worker is a responsiveness boundary, not an OS security sandbox. Use trusted synthetic SQL. Local history and downloaded evidence may contain supplied SQL and data. Account storage is optional. Never import production credentials or personal data.
+The browser engine has no network database connection. SQL input size and invariant row counts are bounded; result byte sizes are not a hardened memory boundary. A Web Worker isolates responsiveness rather than providing an OS sandbox. Use trusted synthetic SQL. Local history and downloaded evidence may contain supplied SQL and data. Account storage is optional. Never import production credentials or personal data.
 
 ## Quality checks
 
@@ -112,3 +114,7 @@ See `docs/VALIDATION.md` for actual verification results and limitations. Depend
 - `docs/BUILD-BRIEF.md` — product and technical design
 
 Created for the IBM Bob 2.0 Hackathon, September 25–27, 2026. Project creator and product direction: **Shivam Gupta**. AI-assisted development contributions are documented rather than presented as independent human authorship.
+
+## Try it against application source
+
+The [runnable checkout sample](examples/checkout-app/README.md) shares its old/new HTTP query constants with the contract generator. Run `npm run sample:checkout` to exercise the service, then `npm run sample:contract` to derive a release contract from its actual queries and migration files. Follow the sample guide to reproduce data loss, review the migration patch, and require the corrected release to pass.

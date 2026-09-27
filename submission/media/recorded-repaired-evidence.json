@@ -1,0 +1,236 @@
+{
+  "contract": {
+    "seedSql": "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, total_cents INTEGER NOT NULL CHECK(total_cents >= 0));\nINSERT INTO orders VALUES (101, 'Northstar Studio', 24900), (102, 'Juniper Labs', 8900), (103, 'Atlas Works', 15900);",
+    "oldReadSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+    "oldWriteSql": "INSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);",
+    "invariantSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+    "tags": [
+      "PostgreSQL",
+      "Checkout",
+      "Synthetic data"
+    ],
+    "id": "checkout-snapshot",
+    "name": "The disappearing order",
+    "migrationName": "20260927_004_add_order_status",
+    "description": "A checkout release adds order status. Forward tests pass. The rollback restores a pre-release snapshot — silently erasing orders placed after deployment.",
+    "upSql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';",
+    "downSql": "-- Application rollback: retain the compatible expanded schema.\nSELECT 1;",
+    "newReadSql": "SELECT id, customer, total_cents, status FROM orders ORDER BY id;",
+    "newWriteSql": "INSERT INTO orders (id, customer, total_cents, status) VALUES (104, 'New customer order', 32900, 'paid');",
+    "repair": {
+      "summary": "Keep the additive status column when reverting the application. Old code ignores it, and its DEFAULT supports old writers. Remove the snapshot restoration so post-deployment orders survive. Clean up schema later in a separately rehearsed release.",
+      "upSql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';",
+      "downSql": "-- Application rollback: retain the compatible expanded schema.\nSELECT 1;"
+    }
+  },
+  "report": {
+    "id": "e90b741b-0d67-46bb-85a6-03f0764f3751",
+    "contractId": "checkout-snapshot",
+    "contractName": "The disappearing order",
+    "startedAt": "2026-09-27T03:24:18.966Z",
+    "durationMs": 2484.4,
+    "engine": "PostgreSQL / PGlite 0.3.16 (WASM)",
+    "status": "passed",
+    "checks": [
+      {
+        "id": "baseline",
+        "name": "Baseline application",
+        "status": "passed",
+        "durationMs": 621.2,
+        "detail": "Old reads and writes execute against the original schema.",
+        "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;\nINSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);"
+      },
+      {
+        "id": "forward",
+        "name": "Forward deployment",
+        "status": "passed",
+        "durationMs": 376.4,
+        "detail": "Migration and new application reads/writes execute successfully.",
+        "sql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';\nSELECT id, customer, total_cents, status FROM orders ORDER BY id;\nINSERT INTO orders (id, customer, total_cents, status) VALUES (104, 'New customer order', 32900, 'paid');"
+      },
+      {
+        "id": "baseline-data",
+        "name": "Original data survives deployment",
+        "status": "passed",
+        "durationMs": 371.3,
+        "detail": "All 3 original business rows survived deployment unchanged.",
+        "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+        "before": [
+          {
+            "id": 101,
+            "customer": "Northstar Studio",
+            "total_cents": 24900
+          },
+          {
+            "id": 102,
+            "customer": "Juniper Labs",
+            "total_cents": 8900
+          },
+          {
+            "id": 103,
+            "customer": "Atlas Works",
+            "total_cents": 15900
+          }
+        ],
+        "after": [
+          {
+            "id": 101,
+            "customer": "Northstar Studio",
+            "total_cents": 24900
+          },
+          {
+            "id": 102,
+            "customer": "Juniper Labs",
+            "total_cents": 8900
+          },
+          {
+            "id": 103,
+            "customer": "Atlas Works",
+            "total_cents": 15900
+          }
+        ]
+      },
+      {
+        "id": "old-reader",
+        "name": "Old reader · new schema",
+        "status": "passed",
+        "durationMs": 367.1,
+        "detail": "Old application reads work during a rolling deployment.",
+        "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;"
+      },
+      {
+        "id": "old-writer",
+        "name": "Old writer · new schema",
+        "status": "passed",
+        "durationMs": 382.6,
+        "detail": "Old application writes are accepted and the new reader still executes.",
+        "sql": "INSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);"
+      },
+      {
+        "id": "post-deploy",
+        "name": "Post-deploy data checkpoint",
+        "status": "passed",
+        "durationMs": 3.8,
+        "detail": "Captured 4 business rows after a visible post-deploy write.",
+        "sql": "INSERT INTO orders (id, customer, total_cents, status) VALUES (104, 'New customer order', 32900, 'paid');\nSELECT id, customer, total_cents FROM orders ORDER BY id;",
+        "before": [
+          {
+            "id": 101,
+            "customer": "Northstar Studio",
+            "total_cents": 24900
+          },
+          {
+            "id": 102,
+            "customer": "Juniper Labs",
+            "total_cents": 8900
+          },
+          {
+            "id": 103,
+            "customer": "Atlas Works",
+            "total_cents": 15900
+          }
+        ],
+        "after": [
+          {
+            "id": 101,
+            "customer": "Northstar Studio",
+            "total_cents": 24900
+          },
+          {
+            "id": 102,
+            "customer": "Juniper Labs",
+            "total_cents": 8900
+          },
+          {
+            "id": 103,
+            "customer": "Atlas Works",
+            "total_cents": 15900
+          },
+          {
+            "id": 104,
+            "customer": "New customer order",
+            "total_cents": 32900
+          }
+        ]
+      },
+      {
+        "id": "rollback",
+        "name": "Rollback plan",
+        "status": "passed",
+        "durationMs": 0.2,
+        "detail": "Rollback SQL completed. Data preservation is verified separately.",
+        "sql": "-- Application rollback: retain the compatible expanded schema.\nSELECT 1;"
+      },
+      {
+        "id": "preservation",
+        "name": "Data preservation",
+        "status": "passed",
+        "durationMs": 0.7,
+        "detail": "All 4 rows in the supplied invariant projection survived unchanged.",
+        "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+        "before": [
+          {
+            "id": 101,
+            "customer": "Northstar Studio",
+            "total_cents": 24900
+          },
+          {
+            "id": 102,
+            "customer": "Juniper Labs",
+            "total_cents": 8900
+          },
+          {
+            "id": 103,
+            "customer": "Atlas Works",
+            "total_cents": 15900
+          },
+          {
+            "id": 104,
+            "customer": "New customer order",
+            "total_cents": 32900
+          }
+        ],
+        "after": [
+          {
+            "id": 101,
+            "customer": "Northstar Studio",
+            "total_cents": 24900
+          },
+          {
+            "id": 102,
+            "customer": "Juniper Labs",
+            "total_cents": 8900
+          },
+          {
+            "id": 103,
+            "customer": "Atlas Works",
+            "total_cents": 15900
+          },
+          {
+            "id": 104,
+            "customer": "New customer order",
+            "total_cents": 32900
+          }
+        ]
+      },
+      {
+        "id": "old-after",
+        "name": "Old application after rollback",
+        "status": "passed",
+        "durationMs": 0.8,
+        "detail": "Old reads and writes execute after rollback; probe writes were rolled back.",
+        "sql": "SELECT id, customer, total_cents FROM orders ORDER BY id;\nINSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);"
+      },
+      {
+        "id": "redo",
+        "name": "Redeploy after rollback",
+        "status": "passed",
+        "durationMs": 0.9,
+        "detail": "Migration can be reapplied and the new reader executes.",
+        "sql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';\nSELECT id, customer, total_cents, status FROM orders ORDER BY id;"
+      }
+    ],
+    "contractHash": "eb3783a6c63dd4a7bcd1625b56ae792561c283016088780e1ae8d3b09dacc80c",
+    "summary": "All supplied SQL contracts passed. The supplied invariant projection was unchanged after rollback."
+  }
+}

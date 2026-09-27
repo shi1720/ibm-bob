@@ -9,3 +9,8 @@ bob_sessions
 artifacts
 playwright-report
 test-results
+
+.artifacts
+output
+submission
+*.tsbuildinfo

@@ -8,7 +8,7 @@ The trigger is concrete: a migration changes stored data or the contract between
 
 ## Value hypothesis
 
-A useful release gate should reduce the repeated manual work of building fixtures, applying migration steps, trying previous query contracts, comparing records, and attaching evidence to a review. The prototype demonstrates those operations on synthetic examples. We have not claimed customer incident reduction, measured willingness to pay, or a percentage productivity gain.
+A useful release gate should reduce the repeated manual work of building fixtures, applying migration steps, trying previous query contracts, comparing records, and attaching evidence to a review. The prototype demonstrates those operations on synthetic examples. `submission/IMPACT.md` records one unsafe and one repaired CLI execution, with measured engine duration and a reproducible workflow comparison. These measurements exclude contract authoring and human review. We have not claimed customer incident reduction, measured willingness to pay, or a percentage productivity gain.
 
 Validation plan: interview five platform leads about their last migration rollback, give three teams a local runner for a real non-sensitive migration, and measure configuration time, false-positive rate, useful defects found, repeat weekly usage, and paid pilot intent. Compare the same review task manually and with UndoProof. Publish sample size and environment with any timing claims.
 
@@ -20,7 +20,7 @@ Validation plan: interview five platform leads about their last migration rollba
 | Team workspace | $99/month per team | Shared policies, retained evidence and multi-repository reporting |
 | Private deployment | Discuss after pilots | Customer-owned runners, access controls, retention and support |
 
-Prices and paid features are hypotheses. No paid tier, customers, revenue, or enterprise readiness is implied by the hackathon implementation.
+Prices and paid features are hypotheses. No paid tier, customers, revenue, or enterprise readiness is implied by the hackathon implementation. Current account functionality stores personal run history on the self-hosted server. Shared team policy, approvals and organization collaboration are proposed features, not the current product.
 
 The execution core uses embedded PostgreSQL and deterministic SQL, so each rehearsal requires no paid model inference. Local runs use the developer's compute. Hosted unit economics must include hosting, storage, authentication operations, support, and any future runner isolation. A browser-only demo does not establish SaaS hosting costs.
 

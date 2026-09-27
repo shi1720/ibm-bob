@@ -42,17 +42,17 @@ Container runs as the unprivileged `node` user and retains SQLite in the volume.
 
 All mutations except bodyless run deletion accept JSON; mutation requests carrying an Origin must match `APP_ORIGIN`. Origin-less CLI requests are allowed. Cross-site browser fetches are rejected. Auth uses scrypt-salted passwords and random, hashed, seven-day session tokens. Login rotates the browser's previous session. Login/registration/deletion share a 20-attempt/15-minute IP limit, plus 180 API requests/minute. Rate limits are process-local; this SQLite deployment is a single server, not a multi-replica service.
 
-| Route | Behavior |
-|---|---|
-| `GET /api/health` | Status and evidence provenance |
-| `GET /api/auth/me` | `{user: {id,email,name} \| null}` |
-| `POST /api/auth/register` | `{email,password,name}`; 12–128 character password; starts session |
-| `POST /api/auth/login` | `{email,password}`; starts session |
-| `POST /api/auth/logout` | `{}`; destroys current session |
-| `DELETE /api/auth/me` | `{password}`; atomically deletes account, all sessions, all saved runs |
-| `GET /api/runs` | `{runs:[{id,contract,report,createdAt,evidenceSource}]}` for current user |
-| `POST /api/runs` | `{contract,report}`; returns `{run}` with server-generated storage ID |
-| `DELETE /api/runs/:id` | Deletes own run; 204 success, 404 for absent/other users' IDs |
+| Route                     | Behavior                                                                  |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `GET /api/health`         | Status and evidence provenance                                            |
+| `GET /api/auth/me`        | `{user: {id,email,name} \| null}`                                         |
+| `POST /api/auth/register` | `{email,password,name}`; 12–128 character password; starts session        |
+| `POST /api/auth/login`    | `{email,password}`; starts session                                        |
+| `POST /api/auth/logout`   | `{}`; destroys current session                                            |
+| `DELETE /api/auth/me`     | `{password}`; atomically deletes account, all sessions, all saved runs    |
+| `GET /api/runs`           | `{runs:[{id,contract,report,createdAt,evidenceSource}]}` for current user |
+| `POST /api/runs`          | `{contract,report}`; returns `{run}` with server-generated storage ID     |
+| `DELETE /api/runs/:id`    | Deletes own run; 204 success, 404 for absent/other users' IDs             |
 
 Bodies are capped at 2 MB and records at 100 per user. SQL is stored as text. Report shape and contract association are validated, but report claims are not attested or independently recomputed by this server. Evidence is never rendered by the server as HTML.
 

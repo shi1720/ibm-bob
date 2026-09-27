@@ -8,36 +8,51 @@ import { contracts } from '../examples/contracts';
 
 const safe = contracts[2];
 function cli(args: string[]) {
-  const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/rehearse.ts', ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let stdout = '', stderr = '';
-  child.stdout.on('data', data => { stdout += data.toString(); });
-  child.stderr.on('data', data => { stderr += data.toString(); });
-  const done = new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
-    child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr }));
+  const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/rehearse.ts', ...args], {
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  let stdout = '',
+    stderr = '';
+  child.stdout.on('data', (data) => {
+    stdout += data.toString();
+  });
+  child.stderr.on('data', (data) => {
+    stderr += data.toString();
+  });
+  const done = new Promise<{ code: number | null; stdout: string; stderr: string }>(
+    (resolve, reject) => {
+      child.on('error', reject);
+      child.on('close', (code) => resolve({ code, stdout, stderr }));
+    },
+  );
   return { child, done };
 }
 
 describe('adversarial proof boundaries', () => {
   it('distinguishes PostgreSQL nonfinite floating values from SQL NULL', () => {
     expect(sameRows([{ amount: Number.NaN }], [{ amount: null }])).toBe(false);
-    expect(sameRows([{ amount: Number.POSITIVE_INFINITY }], [{ amount: Number.NEGATIVE_INFINITY }])).toBe(false);
+    expect(
+      sameRows([{ amount: Number.POSITIVE_INFINITY }], [{ amount: Number.NEGATIVE_INFINITY }]),
+    ).toBe(false);
   });
   it('blocks forward migrations that erase preexisting business data', async () => {
     const report = await rehearse({ ...safe, upSql: `${safe.upSql}\nDELETE FROM orders;` });
     expect(report.status).toBe('blocked');
-    expect(report.checks.find(check => check.id === 'baseline-data')?.status).toBe('failed');
+    expect(report.checks.find((check) => check.id === 'baseline-data')?.status).toBe('failed');
   }, 30_000);
   it('does not accept a mutating invariant as proof of otherwise invisible writes', async () => {
-    const report = await rehearse({ ...safe,
+    const report = await rehearse({
+      ...safe,
       seedSql: `${safe.seedSql}\nCREATE SEQUENCE witness;`,
       newWriteSql: 'SELECT 1;',
-      invariantSql: "SELECT CASE WHEN nextval('witness') = 1 THEN 0 ELSE 1 END AS fabricated_evidence;",
+      invariantSql:
+        "SELECT CASE WHEN nextval('witness') = 1 THEN 0 ELSE 1 END AS fabricated_evidence;",
     });
     expect(report.status).toBe('blocked');
   }, 30_000);
   it('rejects temporary-sequence side effects even though PostgreSQL permits them in read-only transactions', async () => {
-    const report = await rehearse({ ...safe,
+    const report = await rehearse({
+      ...safe,
       seedSql: `${safe.seedSql}\nCREATE TEMP SEQUENCE witness;`,
       newWriteSql: 'SELECT 1;',
       invariantSql: `SELECT CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='fulfillment')
@@ -47,16 +62,39 @@ describe('adversarial proof boundaries', () => {
   }, 30_000);
   it('keeps a failed baseline blocking even when later branch contracts work', async () => {
     const report = await rehearse({ ...safe, oldReadSql: 'SELECT fulfillment FROM orders;' });
-    expect(report.checks.find(check => check.id === 'baseline')?.status).toBe('failed');
+    expect(report.checks.find((check) => check.id === 'baseline')?.status).toBe('failed');
     expect(report.status).toBe('blocked');
   }, 30_000);
   it('does not hide timestamp corruption below JavaScript Date precision', async () => {
-    const report = await rehearse({ ...safe,
+    const report = await rehearse({
+      ...safe,
       seedSql: `${safe.seedSql}\nALTER TABLE orders ADD COLUMN received_at TIMESTAMP DEFAULT '2026-09-27 12:00:00.123456';`,
       invariantSql: 'SELECT id, received_at FROM orders ORDER BY id;',
       downSql: "UPDATE orders SET received_at = '2026-09-27 12:00:00.123457';",
     });
     expect(report.status).toBe('blocked');
+  }, 30_000);
+  it('preserves exact large integers and high-precision decimals and catches a final-digit change', async () => {
+    const fixture = {
+      ...safe,
+      seedSql: `${safe.seedSql}\nALTER TABLE orders ADD COLUMN external_id BIGINT DEFAULT 9007199254740993;\nALTER TABLE orders ADD COLUMN exact_amount NUMERIC DEFAULT 12345678901234567890.123456789;`,
+      invariantSql: 'SELECT id, external_id, exact_amount FROM orders ORDER BY id;',
+    };
+    const safeReport = await rehearse(fixture);
+    expect(safeReport.status).toBe('passed');
+    const values = safeReport.checks.find((check) => check.id === 'preservation')?.before as Record<
+      string,
+      unknown
+    >[];
+    expect(values[0].external_id).toBe('9007199254740993');
+    expect(values[0].exact_amount).toBe('12345678901234567890.123456789');
+    const corrupted = await rehearse({
+      ...fixture,
+      downSql:
+        'UPDATE orders SET external_id=9007199254740992, exact_amount=12345678901234567890.123456788;',
+    });
+    expect(corrupted.status).toBe('blocked');
+    expect(corrupted.checks.find((check) => check.id === 'preservation')?.status).toBe('failed');
   }, 30_000);
 });
 
@@ -67,9 +105,11 @@ describe('CLI exit semantics', () => {
   }, 10_000);
   it('returns failure for blocked evidence and success for a verified safe contract', async () => {
     const blocked = await cli(['demo:snapshot']).done;
-    expect(blocked.code).toBe(1); expect(blocked.stdout).toContain('BLOCKED');
+    expect(blocked.code).toBe(1);
+    expect(blocked.stdout).toContain('BLOCKED');
     const passed = await cli(['demo:safe']).done;
-    expect(passed.code).toBe(0); expect(passed.stdout).toContain('PASSED');
+    expect(passed.code).toBe(0);
+    expect(passed.stdout).toContain('PASSED');
   }, 60_000);
   it('fails closed when its isolated worker terminates without returning evidence', async () => {
     const { child, done } = cli(['demo:safe']);
@@ -79,13 +119,25 @@ describe('CLI exit semantics', () => {
       while (Date.now() < until && child.exitCode === null) {
         // Match only the known parent process and explicit CLI worker command.
         const processes = execFileSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8' });
-        const row = processes.split('\n').map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/)).find(match => match && Number(match[2]) === child.pid && match[3].includes('rehearse.ts --worker'));
-        if (row) { process.kill(Number(row[1]), 'SIGKILL'); killed = true; break; }
-        await new Promise(resolve => setTimeout(resolve, 25));
+        const row = processes
+          .split('\n')
+          .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/))
+          .find(
+            (match) =>
+              match && Number(match[2]) === child.pid && match[3].includes('rehearse.ts --worker'),
+          );
+        if (row) {
+          process.kill(Number(row[1]), 'SIGKILL');
+          killed = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       expect(killed).toBe(true);
       expect((await done).code).toBe(2);
-    } finally { if (child.exitCode === null) child.kill('SIGKILL'); }
+    } finally {
+      if (child.exitCode === null) child.kill('SIGKILL');
+    }
   }, 15_000);
   it('returns an infrastructure failure when requested evidence cannot be saved', async () => {
     const unavailable = join(tmpdir(), `undoproof-absent-${randomUUID()}`, 'report.json');

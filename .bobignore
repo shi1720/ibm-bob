@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+data/
+node_modules/
+dist/
+.artifacts/
+test-results/
+submission/media/*.mp4
+submission/media/*.webm
+.git/

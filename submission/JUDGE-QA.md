@@ -26,7 +26,7 @@ It executes PostgreSQL locally through WebAssembly without provisioning a server
 
 ## Where is IBM Bob?
 
-Bob IDE participates in development against the release-contract specification. The exact contribution and task summary screenshots appear in the final usage statement and `bob_sessions/`. UndoProof additionally exports a repair prompt containing the contract and actual failure evidence. This is a deliberate IDE handoff, not a hidden live API call. Confirm the final contribution wording before presenting.
+UndoProof exports a repair prompt containing the contract and actual failure evidence. This is a deliberate manual IDE handoff, not a hidden live API call. Completed Bob IDE work and genuine session screenshots remain unverified. Update this answer with the exact contribution only after that work is captured; until then, the hackathon usage requirement remains open.
 
 ## Are the example repairs generated live?
 

@@ -1,4 +1,6 @@
-# IBM Bob hackathon product decision
+# Product research archive
+
+**Implemented outcome:** UndoProof, a PostgreSQL rehearsal tool using PGlite. The shortlist and names below record the early decision process, not current product names or implemented claims.
 
 Researched 2026-09-27. Recommendation: **ReturnSafe — rehearse the release, prove the way back.** Working names, not trademark checks. All pricing below is a hypothesis, not validated willingness to pay.
 
