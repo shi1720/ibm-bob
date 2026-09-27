@@ -41,7 +41,7 @@ A genuine IDE work capture exists at `submission/media/bob-verification-work.png
 
 - Public repository: [shi1720/ibm-bob](https://github.com/shi1720/ibm-bob).
 - Presentation deck, slide PDF, one-pager and cover were rendered and visually inspected.
-- The narrated MP4 is approximately 176 seconds, including 126 seconds of actual application recording. Voiceover is disclosed as synthetic Samantha narration. Captions are burned in and supplied separately.
+- The narrated MP4 is approximately 176 seconds, including 126 seconds of actual application recording. Voiceover is disclosed as synthetic Kokoro neural narration. Captions are burned in and supplied separately.
 - Current duration, caption count, audio measurements and full-decoding status are recorded in [final-video-verification.json](../submission/media/final-video-verification.json). Consult this record for the current media export rather than assuming an earlier file size.
 - Written claims distinguish the manual Bob handoff, reviewed sample repair and genuine Bob testing/review contribution. They do not invent adoption, customer data, commercial traction or percentage productivity savings.
 - Public YouTube publication and final lablab.ai submission are not yet confirmed. Desktop/browser interaction is required to finish those steps. Local assets and passing tests are not a submission receipt.

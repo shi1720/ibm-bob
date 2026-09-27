@@ -13,8 +13,8 @@ Solo team: https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon/undoproof
 - The latest run passed 88 automated tests, six guest browser tests, two self-hosted browser tests and two hosted Firebase tests.
 - IBM Bob authored and ran 41 PostgreSQL regression tests against source-derived checkout contracts. Its contribution is scoped testing and review, not the entire application build.
 - The deck and one-page PDF use the verified Firebase URL and describe the observed Bob testing contribution.
-- `final-demo.mp4` is ready: 176.004 seconds, 1920 by 1080, H.264 video and AAC narration, 8.76 MB. It preserves 126 seconds of actual application footage, burns captions into a separate band and discloses the synthetic voice.
-- The complete MP4 decoded successfully. Intro, failure, repair, Bob and closing frames were inspected. All 36 subtitle cues are ordered and within the video. Audio mean level is -16.1 dB and peak is -1.3 dB.
+- `final-demo.mp4` is ready: 176.010 seconds, 1920 by 1080, H.264 video and AAC narration, 8.42 MB. It preserves 126 seconds of actual application footage, burns captions into a separate band and discloses the local Kokoro neural voice.
+- The complete MP4 decoded successfully. Intro, failure, repair, Bob and closing frames were inspected. All 37 subtitle cues are ordered and within the video. Audio mean level is -17.5 dB and peak is -1.3 dB.
 
 ## Remaining publication steps
 

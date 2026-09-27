@@ -1,9 +1,11 @@
 {
-  "durationSeconds": 176.004167,
+  "durationSeconds": 176.0095,
   "actualApplicationSeconds": 126,
   "width": 1920,
   "height": 1080,
-  "syntheticVoice": "Samantha (English (US))",
+  "syntheticVoice": "Kokoro v1.0 af_heart",
+  "speechModel": "kokoro-v1.0.onnx",
+  "neuralNarration": true,
   "bobScreenshot": "submission/media/bob-verification-work.png",
   "bobScreenshotSha256": "9c0425b299ae62045eb8944d78177e3eea200e580ec03f4c5fa09039bb7bf57f",
   "bobPanelCrop": [
@@ -12,12 +14,15 @@
     3005,
     1360
   ],
-  "captionCount": 36,
-  "sizeBytes": 8758268,
-  "bobCaptureType": "Genuine IDE work capture, not task consumption summary",
-  "bobPresentation": "Full-window context inset and enlarged task-panel crop. Original evidence PNG unchanged.",
-  "audioMeanDb": -16.1,
+  "captionCount": 37,
+  "sizeBytes": 8414741,
+  "fullDecodePassed": true,
+  "minimumCaptionSeconds": 1.861,
+  "audioMeanDb": -17.5,
   "audioPeakDb": -1.3,
-  "minimumCaptionDurationSeconds": 2.191,
-  "fullDecodePassed": true
+  "maximumTempoMultiplier": 1.019259259259259,
+  "bobCaptureType": "Genuine task work capture, not task consumption summary",
+  "bobVideoComposition": "Full-window inset plus enlarged crop of the same unmodified source screenshot",
+  "speechRuntime": "kokoro-onnx 0.6.1",
+  "speechGeneratedLocally": true
 }

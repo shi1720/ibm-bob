@@ -68,7 +68,7 @@ Guest rehearsals run locally in the browser. The hosted app supports account cre
 - Cover: `submission/cover.png`
 - Verified screenshots: `submission/media/`
 - Measured CLI evidence and workflow comparison: `submission/IMPACT.md`
-- Final narrated MP4: `submission/final-demo.mp4` (176.004 seconds, synthetic voice disclosed, captions burned in)
+- Final narrated MP4: `submission/final-demo.mp4` (176.010 seconds, local neural voice disclosed, captions burned in)
 - Bob work capture: `submission/media/bob-verification-work.png`
 - Required task consumption summary: still to capture in `bob_sessions/`
 

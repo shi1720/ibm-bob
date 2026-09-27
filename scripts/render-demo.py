@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a 176s narrated demo from actual screen capture and genuine Bob work evidence.
 
-Uses macOS say for synthetic narration, Pillow for type, and ffmpeg for assembly.
+Uses local Kokoro neural narration, Pillow for type, and ffmpeg for assembly.
 No API key is used. --prepare creates narration/captions except unverified Bob work.
 Final rendering requires --bob-evidence and --bob-confirmed after human/agent review.
 """
@@ -24,45 +24,48 @@ BOLD = ROOT / 'src/assets/fonts/font-3.ttf'
 INK = '#142a2e'
 PAPER = '#f8f6f0'
 ORANGE = '#f06537'
-VOICE = 'Samantha (English (US))'
+VOICE = 'af_heart'
+TTS_SPEED = 0.98
+TTS = None
 SCENES = [
 (0,16,'Your release passed. Will your rollback?', [
-'Your deployment is green. Then you roll back, and a new customer order disappears.',
-'Built by Shivam Gupta, UndoProof rehearses the recovery plan before a database migration ships.']),
+"Your release looks good. But then you roll it back, and a customer's new order disappears.",
+"Built by Shivam Gupta, UndoProof catches that failure before a database migration ships."]),
 (16,24,'01  Meet the disappearing order',[
-'This is our checkout example. The release works, but its rollback quietly loses a new order.']),
+"Here's our checkout example. The new release works. The trouble starts when we try to undo it."]),
 (24,30,'02  Make the release contract explicit',[
-'A release contract makes the migration, application queries, and important data explicit.']),
+"This contract lists the migration, the application queries, and the data we need to protect."]),
 (30,39,'03  Inspect the unsafe rollback',[
-'Here is the problem. The rollback drops the current orders table and restores a snapshot taken before deployment.']),
+"Look at this rollback. It drops today's orders table and restores a snapshot from before the release."]),
 (39,47,'04  Write after deployment',[
-'This write creates order one hundred and four after deployment. Our recovery plan must preserve that order.']),
+"Now, a customer places order one hundred and four. It's new data. The rollback needs to keep it."]),
 (47,55,'05  Execute real PostgreSQL',[
-'Let us rehearse. UndoProof runs real PostgreSQL through PGlite. The result blocks this release plan.']),
+"Let's run the rehearsal. This is real Postgres, running through PGlite. And the release plan is blocked."]),
 (55,64,'06  Successful SQL can still lose data',[
-'The forward path works. The rollback SQL also succeeds. But data preservation fails. Those are deliberately separate checks.']),
+"The forward tests passed. The rollback SQL worked, too. But look at data preservation. That's where the failure shows up."]),
 (64,80,'07  Inspect the missing order',[
-'Here is the evidence. Four rows before rollback, three afterward. The highlighted new order has disappeared.',
-'We compare exact values in the supplied invariant projection. A successful SQL command cannot hide this failure.']),
+"Before rollback, four orders. After rollback, three. Order one hundred and four has disappeared.",
+"We compare the actual values in the data invariant. A successful SQL command doesn't hide the missing order."]),
 (80,89,'08  Give Bob the actual evidence',[
-'This export gives Bob the exact contract and failure evidence. It is a manual IDE handoff for a focused repair task.']),
+"This handoff gives Bob the exact contract and the failure evidence. The developer opens it in Bob IDE to investigate."]),
 (89,102,'09  Review the candidate repair',[
-'For this example, we include a repair to review. It keeps the compatible expanded schema when the application rolls back.',
-'Removing the destructive snapshot restore preserves the new data.']),
+"Here's a candidate repair we can review. It keeps the compatible new column when the application rolls back.",
+"We remove the destructive snapshot restore. The customer's order stays in the database."]),
 (102,112,'10  Apply and rehearse again',[
-'Apply the reviewed SQL and run the same engine again. This time every supplied check passes.']),
+"Apply the reviewed change, then run the same checks again. This time, every check passes."]),
 (112,124,'11  Verify what survived',[
-'All four orders survive, including the write after deployment. The earlier application queries still work.',
-'Rolling back application code does not require deleting the expanded schema.']),
+"All four orders survive. The old application queries still work, too.",
+"We can roll back the application without destroying the compatible database changes."]),
 (124,132,'12  Export reproducible evidence',[
-'Export the tested contract, executed SQL, row comparisons and measured runtime as evidence.']),
+"Export the evidence for the release review: the tested contract, executed SQL, row comparisons, and runtime."]),
 (132,142,'13  Keep both outcomes',[
-'History keeps both outcomes. Developers can import their own contracts, and the command-line runner uses the same engine as a release gate.']),
+"History keeps the failed run and the repaired run. Bring your own contracts, or use the same engine as a command-line release gate."]),
 (142,162,'14  IBM Bob IDE contribution',[]),
 (162,176,'Prove the way back. Before you ship.',[
-'UndoProof is open source. Our proposed team product adds shared policies and retained evidence.',
-'These results cover the tested SQL and fixtures. The way back belongs in the release review.']),
+"UndoProof is open source. Next, we'll test shared release policies and retained evidence with engineering teams.",
+"Results cover the tested SQL and fixtures. The way back belongs in the release review."]),
 ]
+
 
 
 def run(args):
@@ -145,11 +148,17 @@ def bob_card(source, target):
 
 
 def say(sentence):
-    spoken=sentence.replace('UndoProof','Undo Proof').replace('PGlite','P G lite').replace('PostgreSQL','Postgres Q L').replace('SQL','S Q L').replace('IDE','I D E').replace('IBM','I B M')
-    key=hashlib.sha256((VOICE+'145'+spoken).encode()).hexdigest()[:16]
-    path=WORK/f'speech-{key}.aiff'
+    global TTS
+    spoken=sentence.replace('UndoProof','Undo Proof').replace('PGlite','P G light').replace('PostgreSQL','Postgres').replace('SQL','sequel').replace('IDE','I D E').replace('IBM','I B M')
+    key=hashlib.sha256(('kokoro-v1.0'+VOICE+str(TTS_SPEED)+spoken).encode()).hexdigest()[:16]
+    path=WORK/f'neural-{key}.wav'
     if not path.exists():
-        run(['say','-v',VOICE,'-r','145','-o',path,spoken])
+        import soundfile as sf
+        from kokoro_onnx import Kokoro
+        if TTS is None:
+            TTS=Kokoro(str(ROOT/'.artifacts/kokoro/kokoro-v1.0.onnx'),str(ROOT/'.artifacts/kokoro/voices-v1.0.bin'))
+        samples, rate=TTS.create(spoken,voice=VOICE,speed=TTS_SPEED,lang='en-us')
+        sf.write(str(path),samples,rate,subtype='PCM_16')
     return path
 
 
@@ -244,11 +253,11 @@ def main():
     if args.prepare:
         print('Narration prepared. Bob evidence still required.');return
     (OUT/'NARRATION.srt').write_text('\n\n'.join(f"{i+1}\n{stamp(c['start'])} --> {stamp(c['end'])}\n{c['text']}" for i,c in enumerate(captions))+'\n')
-    script='# Final demo narration\n\nDuration: 176 seconds. Actual application recording: 126 seconds. Narration is a disclosed synthetic English voice generated locally with macOS Samantha. Captions are burned into a separate band and provided in NARRATION.srt.\n\n'
+    script='# Final demo narration\n\nDuration: 176 seconds. Actual application recording: 126 seconds. Narration is a disclosed synthetic English voice generated locally with Kokoro af_heart. Captions are burned into a separate band and provided in NARRATION.srt.\n\n'
     for start,end,label,sentences in SCENES:
         script+=f'## {stamp(start)[:8]} to {stamp(end)[:8]}: {label}\n\n'+ '\n\n'.join(sentences)+'\n\n'
     script+='## Provenance\n\nThe main workflow is the unsped original screen recording. The Bob segment displays a full-window inset and an enlarged region of the same genuine IBM Bob work capture. The original evidence PNG is unmodified. It is not a task consumption summary. The video does not claim an automatic Bob API integration. The built-in repair is a reviewed sample. No production data or invented speedup is used.\n'
-    script += '\n## Reproduce the final edit\n\nRequires macOS `say`, ffmpeg, ffprobe and Python with Pillow.\n\n```sh\npython3 scripts/render-demo.py --bob-evidence submission/media/bob-verification-work.png --bob-confirmed --bob-narration submission/BOB-NARRATION.txt\n```\n\nThe supplied work capture and reviewed narration establish the segment\'s content. They do not replace the required task consumption summary.\n'
+    script += '\n## Reproduce the final edit\n\nRequires local Kokoro model and voices, ffmpeg, ffprobe and Python with kokoro-onnx, soundfile and Pillow.\n\n```sh\npython3 scripts/render-demo.py --bob-evidence submission/media/bob-verification-work.png --bob-confirmed --bob-narration submission/BOB-NARRATION.txt\n```\n\nThe supplied work capture and reviewed narration establish the segment\'s content. They do not replace the required task consumption summary.\n'
     (OUT/'VIDEO-SCRIPT.md').write_text(script)
     title_card(WORK/'intro.png');title_card(WORK/'close.png',True)
     bob_card(args.bob_summary,WORK/'bob.png')
@@ -282,7 +291,7 @@ def main():
     info=probe(OUT/'final-demo.mp4')
     assert float(info['format']['duration']) <= 176.1
     assert any(stream['codec_type'] == 'audio' for stream in info['streams'])
-    (OUT/'media/final-video-verification.json').write_text(json.dumps({'durationSeconds':float(info['format']['duration']),'actualApplicationSeconds':126,'width':1920,'height':1080,'syntheticVoice':VOICE,'bobScreenshot':str(args.bob_summary.resolve().relative_to(ROOT)),'bobScreenshotSha256':hashlib.sha256(args.bob_summary.read_bytes()).hexdigest(),'bobPanelCrop':[2424,900,3005,1360],'captionCount':len(captions),'sizeBytes':int(info['format']['size'])},indent=2))
+    (OUT/'media/final-video-verification.json').write_text(json.dumps({'durationSeconds':float(info['format']['duration']),'actualApplicationSeconds':126,'width':1920,'height':1080,'syntheticVoice':'Kokoro v1.0 '+VOICE,'speechModel':'kokoro-v1.0.onnx','neuralNarration':True,'bobScreenshot':str(args.bob_summary.resolve().relative_to(ROOT)),'bobScreenshotSha256':hashlib.sha256(args.bob_summary.read_bytes()).hexdigest(),'bobPanelCrop':[2424,900,3005,1360],'captionCount':len(captions),'sizeBytes':int(info['format']['size'])},indent=2))
     print('Rendered submission/final-demo.mp4. Inspect frames, audio and the full edit before publishing.')
 
 if __name__=='__main__':main()
