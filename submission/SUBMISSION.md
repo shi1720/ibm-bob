@@ -1,9 +1,11 @@
 # UndoProof
 
 ## Project title
+
 UndoProof: prove the way back
 
 ## Short description
+
 A rollback can succeed and still erase new orders. UndoProof rehearses PostgreSQL migration plans, exposes lost writes, and verifies a reviewed repair with executable evidence before release.
 
 ## Problem & solution statement
@@ -37,15 +39,19 @@ Shivam Gupta owns the product direction, integration and submission. The project
 IBM Bob 2.0, PostgreSQL, PGlite, TypeScript, React, Vite, Firebase, SQL, developer tools, testing, release engineering, database migrations, CI/CD
 
 ## Platform
+
 Firebase-hosted web application with Firebase Authentication, private Firestore history and a command-line rehearsal engine. An Express account server remains available for self-hosting.
 
 ## Solo team
+
 https://lablab.ai/ai-hackathons/ibm-bob-2-hackathon/undoproof
 
 ## Public repository
+
 https://github.com/shi1720/ibm-bob
 
 ## Application URL
+
 https://undoproof.web.app
 
 Guest rehearsals run locally in the browser. The hosted app supports account creation, sign-in, password recovery, private evidence history and password-confirmed account deletion through Firebase. No database credentials or inference API key are required.
@@ -62,7 +68,7 @@ Guest rehearsals run locally in the browser. The hosted app supports account cre
 - Cover: `submission/cover.png`
 - Verified screenshots: `submission/media/`
 - Measured CLI evidence and workflow comparison: `submission/IMPACT.md`
-- Final narrated MP4: `submission/final-demo.mp4` (176.007 seconds, synthetic voice disclosed, captions burned in)
+- Final narrated MP4: `submission/final-demo.mp4` (176.004 seconds, synthetic voice disclosed, captions burned in)
 - Bob work capture: `submission/media/bob-verification-work.png`
 - Required task consumption summary: still to capture in `bob_sessions/`
 

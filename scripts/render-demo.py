@@ -123,6 +123,27 @@ def title_card(path,closing=False):
     im.save(path)
 
 
+def bob_card(source, target):
+    original=Image.open(source).convert('RGB')
+    canvas=Image.new('RGB',(1920,1080),PAPER)
+    d=ImageDraw.Draw(canvas)
+    text(d,(70,100),'IBM Bob, inside the repository',44,INK,True)
+    context=original.copy();context.thumbnail((860,510))
+    canvas.paste(context,(70,195))
+    text(d,(70,755),'41 real PostgreSQL regression tests',36,INK,True)
+    text(d,(70,811),'tests/bob-workflow.test.ts',28,ORANGE,True)
+    text(d,(70,864),'Verified tests and review. Actual task context above.',23,INK)
+    if original.size != (3024,1746):
+        raise ValueError('Bob panel crop belongs to the inspected 3024x1746 work capture')
+    # Enlarge only an actual region of the original screenshot. No UI is rebuilt.
+    detail=original.crop((2424,900,3005,1360))
+    detail=detail.resize((790,625),Image.Resampling.LANCZOS)
+    text(d,(1040,169),'ENLARGED TASK DETAIL',22,ORANGE,True)
+    canvas.paste(detail,(1040,218))
+    text(d,(1040,871),'Detail from the same unaltered work capture',21,INK)
+    canvas.save(target)
+
+
 def say(sentence):
     spoken=sentence.replace('UndoProof','Undo Proof').replace('PGlite','P G lite').replace('PostgreSQL','Postgres Q L').replace('SQL','S Q L').replace('IDE','I D E').replace('IBM','I B M')
     key=hashlib.sha256((VOICE+'145'+spoken).encode()).hexdigest()[:16]
@@ -226,11 +247,11 @@ def main():
     script='# Final demo narration\n\nDuration: 176 seconds. Actual application recording: 126 seconds. Narration is a disclosed synthetic English voice generated locally with macOS Samantha. Captions are burned into a separate band and provided in NARRATION.srt.\n\n'
     for start,end,label,sentences in SCENES:
         script+=f'## {stamp(start)[:8]} to {stamp(end)[:8]}: {label}\n\n'+ '\n\n'.join(sentences)+'\n\n'
-    script+='## Provenance\n\nThe main workflow is the unsped original screen recording. The Bob segment displays a genuine Bob IDE work capture during the review. It is not a task consumption summary. The video does not claim an automatic Bob API integration. The built-in repair is a reviewed sample. No production data or invented speedup is used.\n'
+    script+='## Provenance\n\nThe main workflow is the unsped original screen recording. The Bob segment displays a full-window inset and an enlarged region of the same genuine IBM Bob work capture. The original evidence PNG is unmodified. It is not a task consumption summary. The video does not claim an automatic Bob API integration. The built-in repair is a reviewed sample. No production data or invented speedup is used.\n'
+    script += '\n## Reproduce the final edit\n\nRequires macOS `say`, ffmpeg, ffprobe and Python with Pillow.\n\n```sh\npython3 scripts/render-demo.py --bob-evidence submission/media/bob-verification-work.png --bob-confirmed --bob-narration submission/BOB-NARRATION.txt\n```\n\nThe supplied work capture and reviewed narration establish the segment\'s content. They do not replace the required task consumption summary.\n'
     (OUT/'VIDEO-SCRIPT.md').write_text(script)
     title_card(WORK/'intro.png');title_card(WORK/'close.png',True)
-    bob=Image.open(args.bob_summary).convert('RGB');bob.thumbnail((1800,880))
-    canvas=Image.new('RGB',(1920,1080),PAPER);canvas.paste(bob,((1920-bob.width)//2,60+(900-bob.height)//2));canvas.save(WORK/'bob.png')
+    bob_card(args.bob_summary,WORK/'bob.png')
     assert abs(duration(OUT/'media/screen-demo.mp4') - 126) < 0.05
     sources=[(WORK/'intro.png',16,True),(OUT/'media/screen-demo.mp4',126,False),(WORK/'bob.png',20,True),(WORK/'close.png',14,True)]
     base=[]
@@ -261,7 +282,7 @@ def main():
     info=probe(OUT/'final-demo.mp4')
     assert float(info['format']['duration']) <= 176.1
     assert any(stream['codec_type'] == 'audio' for stream in info['streams'])
-    (OUT/'media/final-video-verification.json').write_text(json.dumps({'durationSeconds':float(info['format']['duration']),'actualApplicationSeconds':126,'width':1920,'height':1080,'syntheticVoice':VOICE,'bobScreenshot':str(args.bob_summary.resolve().relative_to(ROOT)),'captionCount':len(captions),'sizeBytes':int(info['format']['size'])},indent=2))
+    (OUT/'media/final-video-verification.json').write_text(json.dumps({'durationSeconds':float(info['format']['duration']),'actualApplicationSeconds':126,'width':1920,'height':1080,'syntheticVoice':VOICE,'bobScreenshot':str(args.bob_summary.resolve().relative_to(ROOT)),'bobScreenshotSha256':hashlib.sha256(args.bob_summary.read_bytes()).hexdigest(),'bobPanelCrop':[2424,900,3005,1360],'captionCount':len(captions),'sizeBytes':int(info['format']['size'])},indent=2))
     print('Rendered submission/final-demo.mp4. Inspect frames, audio and the full edit before publishing.')
 
 if __name__=='__main__':main()

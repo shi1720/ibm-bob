@@ -9,7 +9,7 @@ Updated September 27, 2026.
 
 The draft contains the title, short description, problem and solution, IBM Bob usage statement, Developer Tools category and IBM technology tag. The platform has no Bob-specific technology tag in its available list. The draft has reached the media step. It is not a completed submission.
 
-The local final video, cover and PDF are ready. Upload was blocked by a macOS file picker whose Open button remained disabled for the valid pitch PDF. Desktop actions also returned stale screenshots and intermittent noWindowsAvailable errors. The user was asked to unlock the desktop and confirm the picker selection. No upload success or public YouTube URL has been verified.
+The local final video, cover and PDF are ready. Upload was blocked by a macOS file picker whose Open button remained disabled for the valid pitch PDF. Desktop actions also returned stale screenshots and intermittent noWindowsAvailable errors. The desktop tool subsequently confirmed that the Mac is locked and automatic unlock failed. The user must unlock the Mac manually before UI work can continue. No upload success or public YouTube URL has been verified.
 
 Bob completed the source-contract tests and review. The genuine task consumption summary still must be captured in bob_sessions. The existing work screenshot is real but is not the required summary.
 
