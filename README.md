@@ -1,4 +1,5 @@
 # UndoProof
+
 ### Your release passed. Will your rollback?
 
 **Executable PostgreSQL rollback rehearsals by Shivam Gupta. Designed for an evidence-driven IBM Bob workflow.**
@@ -9,9 +10,9 @@ UndoProof catches that failure **before deployment**. It runs your SQL contracts
 
 ## Try it
 
-[Open the live browser demo](https://shi1720.github.io/ibm-bob/) · [Account-enabled deployment guide](server/README.md)
+[Open the live application](https://undoproof.web.app) · [Firebase deployment guide](docs/FIREBASE.md)
 
-Requires Node.js 22.12+ and npm. No Docker, cloud database, AI API key, or production credentials needed for a rehearsal.
+The hosted app works in a modern browser. Local development requires Node.js 22.12+ and npm. No Docker, cloud database, AI API key, or production credentials needed for a rehearsal.
 
 ```sh
 npm ci
@@ -20,27 +21,27 @@ npm run dev
 
 Open the printed localhost address. Select **The disappearing order**, run the rehearsal, inspect the failed data-preservation evidence, review the candidate repair, apply it, and rerun. The repair keeps a backward-compatible additive schema when reverting the application.
 
-For the complete account-enabled application:
+For the alternative self-hosted account server:
 
 ```sh
-npm run build
+VITE_FIREBASE_API_KEY='' npm run build
 npm start
 ```
 
-Open http://localhost:3001. Register an account, run rehearsals, and keep private run history in SQLite. For development with accounts, run `npm run server` and `npm run dev` in separate terminals. Guest rehearsals run locally in your browser; signing in enables server persistence. Reports uploaded by the browser are client-provided evidence, not independently attested CI results.
+Open http://localhost:3001. Register an account, run rehearsals, and keep private run history in SQLite. For development with accounts, run `npm run server` and `npm run dev` in separate terminals. Guest rehearsals run locally in your browser; signing in enables server persistence. Reports uploaded by the browser are client-provided evidence, not independently attested CI results. The public Firebase deployment supports email/password accounts, password reset, and private Firestore history without running this server. Email ownership verification is not enabled. Both account modes accept client-supplied evidence; neither independently attests to browser execution.
 
 ## The release contract
 
 Import a JSON file or edit the built-in examples. Each contract contains:
 
-| Field | Purpose |
-| --- | --- |
-| `seedSql` | Create the baseline schema and original synthetic data |
-| `upSql` | Apply the proposed migration |
-| `downSql` | Execute the actual rollback plan; this can retain additive schema |
-| `oldReadSql`, `oldWriteSql` | SQL used by the previous application version |
-| `newReadSql`, `newWriteSql` | SQL used by the new application version |
-| `invariantSql` | Select the canonical business rows that must survive rollback |
+| Field                       | Purpose                                                           |
+| --------------------------- | ----------------------------------------------------------------- |
+| `seedSql`                   | Create the baseline schema and original synthetic data            |
+| `upSql`                     | Apply the proposed migration                                      |
+| `downSql`                   | Execute the actual rollback plan; this can retain additive schema |
+| `oldReadSql`, `oldWriteSql` | SQL used by the previous application version                      |
+| `newReadSql`, `newWriteSql` | SQL used by the new application version                           |
+| `invariantSql`              | Select the canonical business rows that must survive rollback     |
 
 Use explicit stable columns in `invariantSql`, including identifiers and all values you need preserved. An aggregate such as `COUNT(*)` alone cannot detect altered values. Query success proves only that the supplied SQL executes; add SQL assertions for domain semantics. An untested application path remains untested.
 
@@ -68,7 +69,7 @@ Exit codes: **0** all checks passed; **1** release blocked; **2** invalid input,
 4. Give the evidence to Bob. Review its candidate migration or application changes.
 5. Rehearse again. Keep the exact report with the PR.
 
-The intended workflow uses Bob as the development and repair partner; deterministic PostgreSQL execution decides the gate. Built-in sample repairs are explicit authored examples, not live model calls. Custom repairs use the exported Bob prompt. See `bob_sessions/` for the current IDE evidence status and `docs/BOB-WORKFLOW.md` for repeatable prompts.
+Bob IDE contributed the real PGlite regression suite in `tests/bob-workflow.test.ts` and the scoped review in `docs/BOB-WORKFLOW-REVIEW.md`. The repeatable workflow uses Bob as the development and repair partner; deterministic PostgreSQL execution decides the gate. Built-in sample repairs are explicit authored examples, not live model calls. Custom repairs use the exported Bob prompt. See `bob_sessions/` for the current IDE evidence status and `docs/BOB-WORKFLOW.md` for repeatable prompts.
 
 ## Architecture
 
@@ -83,8 +84,8 @@ Release contract JSON
                                       |
                           local history / evidence export
                                       |
-                       optional authenticated Express API
-                               SQLite private history
+                       Firebase Auth + Firestore private history
+                       or self-hosted Express + SQLite
 ```
 
 The engine creates independent databases for compatibility checks, preventing one expected failure from contaminating another. A chronological rollback branch runs `seed → up → new writes → invariant → down → invariant → old read → redo`. Browser workers and CLI children are terminated after 30 seconds. Browser SQL never reaches an external database.
@@ -108,10 +109,10 @@ See `docs/VALIDATION.md` for actual verification results and limitations. Depend
 
 ## Submission
 
-- `submission/` — pitch deck, PDF, written statements, video script and recording assets
-- `bob_sessions/` — genuine Bob IDE task-summary screenshots
-- `docs/MARKET-RESEARCH.md` — competitors and commercial assumptions
-- `docs/BUILD-BRIEF.md` — product and technical design
+- `submission/` - pitch deck, PDF, written statements, video script and recording assets
+- `bob_sessions/` - genuine Bob IDE task-summary screenshots
+- `docs/MARKET-RESEARCH.md` - competitors and commercial assumptions
+- `docs/BUILD-BRIEF.md` - product and technical design
 
 Created for the IBM Bob 2.0 Hackathon, September 25–27, 2026. Project creator and product direction: **Shivam Gupta**. AI-assisted development contributions are documented rather than presented as independent human authorship.
 

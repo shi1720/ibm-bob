@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['deleting'])
+        && request.resource.data.deleting == true;
+    }
+    match /users/{uid}/runs/{runId} {
+      function owner() { return request.auth != null && request.auth.uid == uid; }
+      allow read, delete: if owner();
+      // These are client-supplied reports, never an independently attested release gate.
+      allow create, update: if owner()
+        && !exists(/databases/$(database)/documents/users/$(uid))
+        && request.resource.data.keys().hasAll(['payload', 'startedAt'])
+        && request.resource.data.keys().hasOnly(['payload', 'startedAt'])
+        && request.resource.data.payload is string
+        && request.resource.data.payload.size() <= 800000
+        && request.resource.data.startedAt is string
+        && request.resource.data.startedAt.size() <= 40;
+    }
+  }
+}

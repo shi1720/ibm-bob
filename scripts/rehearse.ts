@@ -31,7 +31,7 @@ if (args.includes('--worker')) {
     if (args.includes('--repair')) {
       if (!contract.repair) throw new Error('This contract has no candidate repair.');
       const { summary, ...patch } = contract.repair;
-      contract = { ...contract, ...patch };
+      contract = { ...contract, ...patch, invariantSql: contract.invariantSql };
     }
     const child = fork(fileURLToPath(import.meta.url), ['--worker'], {
       execArgv: ['--import', 'tsx', '--max-old-space-size=512'],

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { spawn, execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { validateContract } from '../src/engine/validate';
 import { randomUUID } from 'node:crypto';
 import { rehearse, sameRows } from '../src/engine/rehearse';
 import { contracts } from '../examples/contracts';
@@ -29,6 +31,22 @@ function cli(args: string[]) {
 }
 
 describe('adversarial proof boundaries', () => {
+  it('rejects repairs that change the invariant while allowing identical evidence and reviewed application query changes', () => {
+    const original = contracts[1];
+    expect(validateContract(original).repair?.newWriteSql).toBe(original.repair?.newWriteSql);
+    expect(
+      validateContract({
+        ...original,
+        repair: { ...original.repair!, invariantSql: `  ${original.invariantSql}  ` },
+      }).repair?.invariantSql,
+    ).toBe(original.invariantSql);
+    expect(() =>
+      validateContract({
+        ...original,
+        repair: { ...original.repair!, invariantSql: 'SELECT COUNT(*) FROM orders;' },
+      }),
+    ).toThrow(/preserve the original invariant/);
+  });
   it('distinguishes PostgreSQL nonfinite floating values from SQL NULL', () => {
     expect(sameRows([{ amount: Number.NaN }], [{ amount: null }])).toBe(false);
     expect(
@@ -58,6 +76,28 @@ describe('adversarial proof boundaries', () => {
       invariantSql: `SELECT CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='fulfillment')
         THEN CASE WHEN nextval('witness') = 1 THEN 0 ELSE 1 END ELSE 0 END AS fabricated_evidence;`,
     });
+    expect(report.status).toBe('blocked');
+  }, 30_000);
+  it('enforces read-only old application probes after rollback without contaminating redeployment', async () => {
+    const report = await rehearse({
+      ...safe,
+      seedSql: `${safe.seedSql}
+        CREATE FUNCTION old_probe() RETURNS integer LANGUAGE plpgsql AS $$
+        BEGIN
+          IF current_setting('application_name') = 'rolled-back' THEN
+            UPDATE orders SET total_cents = 0;
+          END IF;
+          RETURN 1;
+        END $$;`,
+      oldReadSql: 'SELECT old_probe();',
+      downSql: "SET application_name = 'rolled-back';",
+    });
+    expect(report.checks.find((check) => check.id === 'baseline')?.status).toBe('passed');
+    expect(report.checks.find((check) => check.id === 'old-reader')?.status).toBe('passed');
+    const after = report.checks.find((check) => check.id === 'old-after');
+    expect(after?.status).toBe('failed');
+    expect(after?.error).toMatch(/read-only transaction/);
+    expect(report.checks.find((check) => check.id === 'redo')?.status).toBe('passed');
     expect(report.status).toBe('blocked');
   }, 30_000);
   it('keeps a failed baseline blocking even when later branch contracts work', async () => {
@@ -99,6 +139,25 @@ describe('adversarial proof boundaries', () => {
 });
 
 describe('CLI exit semantics', () => {
+  it('fails closed before running a candidate repair that replaces the original invariant', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'undoproof-repair-'));
+    try {
+      const filename = join(directory, 'contract.json');
+      await writeFile(
+        filename,
+        JSON.stringify({
+          ...contracts[0],
+          repair: { ...contracts[0].repair!, invariantSql: 'SELECT COUNT(*) FROM orders;' },
+        }),
+      );
+      const result = await cli([filename, '--repair']).done;
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('preserve the original invariant');
+      expect(result.stdout).not.toContain('PASSED');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 10_000);
   it('returns success for help and invalid-input failure for absent input', async () => {
     expect((await cli(['--help']).done).code).toBe(0);
     expect((await cli([]).done).code).toBe(2);

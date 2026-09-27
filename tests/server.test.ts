@@ -21,12 +21,12 @@ const contract = {
   description: '',
   migrationName: '001',
   seedSql: 'SELECT 1',
-  upSql: '',
-  downSql: '',
+  upSql: 'SELECT 1',
+  downSql: 'SELECT 1',
   oldReadSql: 'SELECT 1',
   newReadSql: 'SELECT 1',
-  newWriteSql: '',
-  oldWriteSql: '',
+  newWriteSql: 'SELECT 1',
+  oldWriteSql: 'SELECT 1',
   invariantSql: 'SELECT 1',
   tags: [],
 };
@@ -184,6 +184,38 @@ describe('private workspace HTTP integration', () => {
         .status,
     ).toBe(403);
     expect((await call(`/api/runs/${run.id}`, 'DELETE', undefined, aliceCookie)).status).toBe(204);
+  });
+  it('uses the execution engine contract limits when saving a private run', async () => {
+    const longId = 'i'.repeat(500);
+    const longName = 'n'.repeat(500);
+    const valid = await call(
+      '/api/runs',
+      'POST',
+      {
+        contract: { ...contract, id: longId, name: longName },
+        report: { ...report, contractId: longId, contractName: longName },
+      },
+      aliceCookie,
+    );
+    expect(valid.status).toBe(201);
+    const { run } = await valid.json();
+    expect(run.contract.name).toBe(longName);
+    expect((await call(`/api/runs/${run.id}`, 'DELETE', undefined, aliceCookie)).status).toBe(204);
+    for (const seedSql of ['', 'x'.repeat(50_001)]) {
+      expect(
+        (
+          await call(
+            '/api/runs',
+            'POST',
+            {
+              contract: { ...contract, seedSql },
+              report,
+            },
+            aliceCookie,
+          )
+        ).status,
+      ).toBe(400);
+    }
   });
   it('invalidates logout and expired sessions', async () => {
     expect((await call('/api/auth/logout', 'POST', {}, aliceCookie)).status).toBe(200);

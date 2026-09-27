@@ -16,7 +16,8 @@
     "format": "prettier --write src server scripts tests examples vite.config.ts playwright.config.ts",
     "submission:check": "node scripts/check-submission.mjs",
     "sample:checkout": "tsx examples/checkout-app/index.ts",
-    "sample:contract": "tsx examples/checkout-app/build-contract.ts"
+    "sample:contract": "tsx examples/checkout-app/build-contract.ts",
+    "deploy:firebase": "node scripts/deploy-firebase.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
@@ -24,6 +25,7 @@
     "cookie-parser": "^1.4.7",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
+    "firebase": "^12.19.0",
     "helmet": "^8.1.0",
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",

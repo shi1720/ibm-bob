@@ -142,7 +142,7 @@ test('private workspace deletion requires the password, removes private runs, an
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('undoproof.runs.v1') || '[]').length),
   ).toBe(1);
-  await page.getByRole('button', { name: 'Rehearsal lab' }).click();
+  await page.getByRole('button', { name: 'Rehearsal lab', exact: true }).click();
   await expect(page.getByText('A green deploy isn’t enough.')).toBeVisible();
   const me = await page.request.get('/api/auth/me');
   expect((await me.json()).user).toBeNull();
@@ -179,13 +179,11 @@ test('large fixture previews are bounded while exported evidence retains all 100
       contracts[2].seedSql +
       "\nINSERT INTO orders SELECT i, 'Synthetic bulk order', 100 FROM generate_series(10000,19995) AS i;",
   };
-  await page
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'large-fixture.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(contract)),
-    });
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'large-fixture.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(contract)),
+  });
   await page.getByRole('button', { name: 'Run rehearsal' }).click();
   await expect(page.getByText('Safe within this contract.')).toBeVisible({ timeout: 30000 });
   await page.locator('.check-row').filter({ hasText: 'Data preservation' }).click();
@@ -201,4 +199,27 @@ test('large fixture previews are bounded while exported evidence retains all 100
   const check = exported.report.checks.find((c: { id: string }) => c.id === 'preservation');
   expect(check.before).toHaveLength(10000);
   expect(check.after).toHaveLength(10000);
+});
+
+test('corrupt persisted guest history is ignored without crashing the workspace', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'undoproof.runs.v1',
+      JSON.stringify([
+        { id: 'corrupt', contract: { id: 'old' }, report: { checks: { invalid: true } } },
+        null,
+        { report: { checks: [] }, contract: { id: 'missing-fields' } },
+      ]),
+    );
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Run history' }).click();
+  await expect(page.locator('.history-row')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rehearsal lab', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Run rehearsal' })).toBeVisible();
+  expect(errors).toEqual([]);
 });

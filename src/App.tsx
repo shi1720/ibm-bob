@@ -31,6 +31,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+import { firebaseEnabled, cloudRequest, observeCloudUser, parseSavedRun } from './cloud/firebase';
 import { contracts } from '../examples/contracts';
 import { contractSchema } from './engine/validate';
 import type { ReleaseContract, RunReport, CheckResult } from './engine/types';
@@ -55,8 +56,13 @@ const SQL_FIELDS = [
 const storageKey = 'undoproof.runs.v1';
 function loadRuns(): SavedRun[] {
   try {
-    return JSON.parse(localStorage.getItem(storageKey) || '[]')
-      .filter((r: SavedRun) => r.report?.checks && r.contract?.id)
+    const stored: unknown = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (!Array.isArray(stored)) return [];
+    return stored
+      .flatMap((entry) => {
+        const parsed = parseSavedRun(entry);
+        return parsed ? [parsed] : [];
+      })
       .slice(0, 20);
   } catch {
     return [];
@@ -79,7 +85,8 @@ function repairPrompt(contract: ReleaseContract, report: RunReport | null) {
 function validContract(value: unknown): value is ReleaseContract {
   return contractSchema.safeParse(value).success;
 }
-async function api(path: string, options?: RequestInit) {
+async function api(path: string, options?: RequestInit, expectedUid?: string) {
+  if (firebaseEnabled) return cloudRequest(path, options, expectedUid);
   const res = await fetch('/api' + path, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -109,8 +116,11 @@ export default function App() {
   const [localRuns, setLocalRuns] = useState<SavedRun[]>(loadRuns);
   const [cloudRuns, setCloudRuns] = useState<SavedRun[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [auth, setAuth] = useState<'login' | 'register' | null>(null);
+  const [auth, setAuth] = useState<'login' | 'register' | 'reset' | null>(null);
   const [accountsAvailable, setAccountsAvailable] = useState<boolean | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const identityRef = useRef<string | null>(null);
+  const identityEpoch = useRef(0);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState('');
   const [settings, setSettings] = useState(false);
@@ -122,25 +132,74 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function changeUser(next: User | null) {
+    if (identityRef.current !== (next?.id || null)) {
+      identityEpoch.current += 1;
+      identityRef.current = next?.id || null;
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setRunning(false);
+      setCloudRuns([]);
+      setReport(null);
+      setReportContract(null);
+      setSelected(null);
+      setContract(structuredClone(contracts[0]));
+    }
+    setUser(next);
+  }
   useEffect(() => {
-    api('/auth/me')
-      .then((d) => {
-        setAccountsAvailable(true);
-        if (d.user) setUser(d.user);
-      })
-      .catch(() => setAccountsAvailable(false));
+    let active = true;
+    const unsubscribe = firebaseEnabled
+      ? observeCloudUser((next) => {
+          if (active) {
+            changeUser(next);
+            setAccountsAvailable(true);
+          }
+        })
+      : () => {};
+    if (!firebaseEnabled)
+      api('/auth/me')
+        .then((d) => {
+          if (active) {
+            setAccountsAvailable(true);
+            changeUser(d.user || null);
+          }
+        })
+        .catch(() => {
+          if (active) setAccountsAvailable(false);
+        });
     return () => {
+      active = false;
+      unsubscribe();
       workerRef.current?.terminate();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
   useEffect(() => {
-    if (user)
-      api('/runs')
-        .then((d) => setCloudRuns(Array.isArray(d) ? d : d.runs || []))
-        .catch((e) => setNotice(e.message));
-    else setCloudRuns([]);
-  }, [user]);
+    let active = true;
+    const epoch = identityEpoch.current;
+    if (user) {
+      setHistoryLoading(true);
+      api('/runs', undefined, user.id)
+        .then((d) => {
+          if (active && epoch === identityEpoch.current)
+            setCloudRuns(Array.isArray(d) ? d : d.runs || []);
+        })
+        .catch((e) => {
+          if (active && epoch === identityEpoch.current) setNotice(e.message);
+        })
+        .finally(() => {
+          if (active) setHistoryLoading(false);
+        });
+    } else {
+      setCloudRuns([]);
+      setHistoryLoading(false);
+    }
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
   useEffect(() => {
     if (!running) return;
     const start = Date.now();
@@ -160,7 +219,7 @@ export default function App() {
       );
     focusable()[0]?.focus();
     const listener = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !authBusy && !deleteBusy) {
         setAuth(null);
         setSelected(null);
         setRepair(false);
@@ -187,7 +246,7 @@ export default function App() {
       document.body.style.overflow = oldOverflow;
       previous?.focus();
     };
-  }, [auth, selected, repair, settings]);
+  }, [auth, selected, repair, settings, authBusy, deleteBusy]);
   function choose(c: ReleaseContract) {
     if (running) return;
     setContract(structuredClone(c));
@@ -211,6 +270,8 @@ export default function App() {
     setSelected(null);
     setTab('overview');
     const snapshot = structuredClone(c);
+    const runEpoch = identityEpoch.current;
+    const runUser = identityRef.current;
     let worker: Worker;
     try {
       worker = new Worker(new URL('./engine/worker.ts', import.meta.url), { type: 'module' });
@@ -237,6 +298,7 @@ export default function App() {
       setError(e.message || 'The SQL worker could not start. Try refreshing the page.');
     };
     worker.onmessage = async (e) => {
+      if (runEpoch !== identityEpoch.current) return;
       if (e.data.type === 'error') {
         stop();
         setError(typeof e.data.error === 'string' ? e.data.error : JSON.stringify(e.data.error));
@@ -248,7 +310,7 @@ export default function App() {
       setReport(r);
       setReportContract(snapshot);
       const entry = { id: r.id, contract: snapshot, report: r };
-      if (!user)
+      if (!runUser)
         setLocalRuns((prev) => {
           const next = [entry, ...prev].slice(0, 20);
           try {
@@ -258,15 +320,22 @@ export default function App() {
           }
           return next;
         });
-      if (user) {
+      if (runUser) {
         try {
-          await api('/runs', {
-            method: 'POST',
-            body: JSON.stringify({ contract: snapshot, report: r }),
-          });
-          const data = await api('/runs');
+          await api(
+            '/runs',
+            {
+              method: 'POST',
+              body: JSON.stringify({ contract: snapshot, report: r }),
+            },
+            runUser,
+          );
+          if (runEpoch !== identityEpoch.current) return;
+          const data = await api('/runs', undefined, runUser);
+          if (runEpoch !== identityEpoch.current) return;
           setCloudRuns(Array.isArray(data) ? data : data.runs || []);
         } catch (err) {
+          if (runEpoch !== identityEpoch.current) return;
           setNotice(`Run completed locally. Workspace save failed: ${(err as Error).message}`);
         }
       }
@@ -298,7 +367,7 @@ export default function App() {
     if (fileRef.current) fileRef.current.value = '';
   }
   function clearPrivateState() {
-    setUser(null);
+    changeUser(null);
     setCloudRuns([]);
     setContract(structuredClone(contracts[0]));
     setReport(null);
@@ -346,7 +415,14 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify(Object.fromEntries(form)),
       });
-      setUser(d.user);
+      if (auth === 'reset') {
+        setAuth('login');
+        setNotice(
+          'If an account uses that email, a password reset link has been sent. Check your inbox and spam folder.',
+        );
+        return;
+      }
+      changeUser(d.user);
       setAuth(null);
       setNotice('Your workspace is ready. New rehearsals will also save to your account.');
     } catch (e) {
@@ -516,7 +592,7 @@ export default function App() {
                 {tab === 'overview'
                   ? 'Your migration works. But does your rollback?'
                   : tab === 'contract'
-                    ? 'Define what must keep working—and what must never disappear.'
+                    ? 'Define what must keep working: and what must never disappear.'
                     : 'Measured outcomes, saved with the exact SQL that produced them.'}
               </p>
             </div>
@@ -734,7 +810,7 @@ export default function App() {
                     <div className="tiny-label">EXECUTABLE EVIDENCE</div>
                     <h2>
                       Compatibility matrix{' '}
-                      <span className="count-badge">{report?.checks.length || '—'}</span>
+                      <span className="count-badge">{report?.checks.length || '0'}</span>
                     </h2>
                   </div>
                   <span className="muted small">
@@ -791,7 +867,7 @@ export default function App() {
                             <Circle size={13} />
                             {running ? 'Running' : 'Not run'}
                           </span>
-                          <span className="mono muted">—</span>
+                          <span className="mono muted">Pending</span>
                           <span />
                         </div>
                       ))}
@@ -1027,11 +1103,20 @@ export default function App() {
                   <div>
                     <div className="tiny-label">ACCOUNT WORKSPACE</div>
                     <h2>{user ? 'Private saved runs' : 'Keep a private workspace.'}</h2>
+                    {user && firebaseEnabled && (
+                      <p className="muted">
+                        Your latest 100 runs. Export evidence you need to retain.
+                      </p>
+                    )}
                   </div>
                   <LockKeyhole size={22} />
                 </div>
                 {user ? (
-                  cloudRuns.length ? (
+                  historyLoading ? (
+                    <p role="status" className="empty-caption">
+                      Loading private runs...
+                    </p>
+                  ) : cloudRuns.length ? (
                     cloudRuns.map((r) => (
                       <HistoryRow
                         key={r.id}
@@ -1044,8 +1129,14 @@ export default function App() {
                         }}
                         onDelete={async () => {
                           try {
-                            await api('/runs/' + encodeURIComponent(r.id), { method: 'DELETE' });
-                            setCloudRuns(cloudRuns.filter((x) => x.id !== r.id));
+                            const epoch = identityEpoch.current;
+                            await api(
+                              '/runs/' + encodeURIComponent(r.id),
+                              { method: 'DELETE' },
+                              user.id,
+                            );
+                            if (epoch === identityEpoch.current)
+                              setCloudRuns((current) => current.filter((x) => x.id !== r.id));
                           } catch (e) {
                             setError((e as Error).message);
                           }
@@ -1060,8 +1151,8 @@ export default function App() {
                 ) : (
                   <div className="account-description">
                     <p>
-                      The self-hosted server adds account access and persisted reports. Guest
-                      rehearsals need no account or external service.
+                      Sign in to save private reports across devices. Guest rehearsals need no
+                      account. Only synthetic SQL and evidence belong in this workspace.
                     </p>
                     <button
                       className="button dark"
@@ -1192,7 +1283,7 @@ export default function App() {
                 className="button primary"
                 onClick={() => {
                   const { summary, ...fields } = contract.repair!;
-                  const next = { ...contract, ...fields };
+                  const next = { ...contract, ...fields, invariantSql: contract.invariantSql };
                   setContract(next);
                   setRepair(false);
                   run(next);
@@ -1230,8 +1321,8 @@ export default function App() {
             <div className="delete-account-section">
               <h3>Delete your account</h3>
               <p>
-                This permanently deletes your account, every saved private workspace run, and all
-                active sessions. This cannot be undone. Export any evidence you want to keep first.
+                This permanently deletes your account and every saved private workspace run. This
+                cannot be undone. Export any evidence you want to keep first.
               </p>
               <p>Guest history stored in this browser will remain.</p>
               <form onSubmit={deleteAccount}>
@@ -1262,17 +1353,24 @@ export default function App() {
         </div>
       )}
       {auth && (
-        <div className="modal-overlay" onClick={() => setAuth(null)}>
+        <div className="modal-overlay" onClick={() => !authBusy && setAuth(null)}>
           <section
             className="auth-modal"
             role="dialog"
             aria-modal="true"
-            aria-label={auth === 'login' ? 'Sign in' : 'Create workspace'}
+            aria-label={
+              auth === 'reset'
+                ? 'Send reset link'
+                : auth === 'login'
+                  ? 'Sign in'
+                  : 'Create workspace'
+            }
             onClick={(e) => e.stopPropagation()}
           >
             <button
               className="modal-close"
               aria-label="Close sign in"
+              disabled={authBusy}
               onClick={() => setAuth(null)}
             >
               <X size={21} />
@@ -1281,9 +1379,21 @@ export default function App() {
               <RotateCcw size={24} />
             </div>
             <div className="tiny-label">YOUR PRIVATE WORKSPACE</div>
-            <h2>{auth === 'login' ? 'Welcome back.' : 'Keep your receipts.'}</h2>
-            <p>Save rehearsal reports to your self-hosted account.</p>
-            {accountsAvailable === false ? (
+            <h2>
+              {auth === 'reset'
+                ? 'Reset your password.'
+                : auth === 'login'
+                  ? 'Welcome back.'
+                  : 'Keep your receipts.'}
+            </h2>
+            <p>
+              {auth === 'reset'
+                ? 'We will email a link to reset your password.'
+                : 'Save rehearsal reports to your private account.'}
+            </p>
+            {accountsAvailable === null ? (
+              <p role="status">Connecting to your workspace...</p>
+            ) : accountsAvailable === false ? (
               <div className="account-unavailable">
                 <Info size={22} />
                 <h3>You’re in the browser demo.</h3>
@@ -1322,17 +1432,19 @@ export default function App() {
                       maxLength={254}
                     />
                   </label>
-                  <label>
-                    Password
-                    <input
-                      name="password"
-                      type="password"
-                      autoComplete={auth === 'login' ? 'current-password' : 'new-password'}
-                      required
-                      minLength={auth === 'register' ? 12 : 1}
-                      maxLength={128}
-                    />
-                  </label>
+                  {auth !== 'reset' && (
+                    <label>
+                      Password
+                      <input
+                        name="password"
+                        type="password"
+                        autoComplete={auth === 'login' ? 'current-password' : 'new-password'}
+                        required
+                        minLength={auth === 'register' ? 12 : 1}
+                        maxLength={128}
+                      />
+                    </label>
+                  )}
                   {auth === 'register' && (
                     <small className="muted">Use at least 12 characters.</small>
                   )}
@@ -1343,26 +1455,42 @@ export default function App() {
                   )}
                   <button className="button primary" type="submit" disabled={authBusy}>
                     {authBusy ? <LoaderCircle className="spin" size={16} /> : null}
-                    {auth === 'login' ? 'Sign in' : 'Create workspace'}
+                    {auth === 'reset'
+                      ? 'Send reset link'
+                      : auth === 'login'
+                        ? 'Sign in'
+                        : 'Create workspace'}
                     <ArrowRight size={16} />
                   </button>
                 </form>
+                {firebaseEnabled && auth === 'login' && (
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      setAuth('reset');
+                      setAuthError('');
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                )}
                 <button
                   className="auth-switch text-button"
+                  disabled={authBusy}
                   onClick={() => {
                     setAuth(auth === 'login' ? 'register' : 'login');
                     setAuthError('');
                   }}
                 >
-                  {auth === 'login'
-                    ? 'New here? Create a workspace'
-                    : 'Already have an account? Sign in'}
+                  {auth === 'login' ? 'New here? Create a workspace' : 'Back to sign in'}
                 </button>
               </>
             )}
             <small className="auth-footnote">
-              Guest mode runs the same SQL engine. Accounts are optional and require the included
-              server.
+              Guest mode runs the same SQL engine.{' '}
+              {firebaseEnabled
+                ? 'Account reports are stored privately in Firebase. Use synthetic data only.'
+                : 'Accounts are optional and require the included server.'}
             </small>
           </section>
         </div>

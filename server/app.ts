@@ -15,47 +15,20 @@ import { promisify } from 'node:util';
 import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+import { contractSchema as releaseContractSchema } from '../src/engine/validate';
 
 const derive = promisify(scrypt);
 const COOKIE = 'undoproof_session';
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 const text = z.string().max(200_000);
-const sqlFields = {
-  upSql: text,
-  downSql: text,
-  newWriteSql: text.optional(),
-  oldWriteSql: text.optional(),
-  newReadSql: text.optional(),
-  oldReadSql: text.optional(),
-  invariantSql: text.optional(),
-};
-const contractSchema = z
-  .object({
-    id: z.string().min(1).max(200),
-    name: z.string().min(1).max(200),
-    description: z.string().max(10_000),
-    migrationName: z.string().max(200),
-    seedSql: text,
-    upSql: text,
-    downSql: text,
-    oldReadSql: text,
-    newReadSql: text,
-    newWriteSql: text,
-    oldWriteSql: text,
-    invariantSql: text,
-    tags: z.array(z.string().max(100)).max(30),
-    repair: z
-      .object({ summary: z.string().max(10_000), ...sqlFields })
-      .strict()
-      .optional(),
-  })
-  .strict();
+// Persist exactly the same contract shape and limits accepted by the execution engine.
+const contractSchema = releaseContractSchema.strict();
 const reportSchema = z
   .object({
     id: z.string().min(1).max(200),
-    contractId: z.string().max(200),
-    contractName: z.string().max(200),
+    contractId: z.string().max(500),
+    contractName: z.string().max(500),
     startedAt: z.iso.datetime(),
     durationMs: z.number().finite().nonnegative(),
     engine: z.string().max(300),
@@ -326,11 +299,9 @@ export function createApp(options: AppOptions = {}) {
       .prepare('SELECT COUNT(*) AS n FROM runs WHERE user_id = ?')
       .get(res.locals.user.id) as { n: number };
     if (count.n >= 100) {
-      res
-        .status(409)
-        .json({
-          error: 'Workspace limit of 100 runs reached. Export and delete older runs first.',
-        });
+      res.status(409).json({
+        error: 'Workspace limit of 100 runs reached. Export and delete older runs first.',
+      });
       return;
     }
     const run = {

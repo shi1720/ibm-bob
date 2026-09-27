@@ -1,9 +1,20 @@
 # IBM Bob task evidence
 
-**Required evidence remains pending. This is not a task-summary screenshot.**
+## Completed repository contribution
 
-An authenticated Bob IDE task was started in this repository on September27,2026. It read the project brief/package and inspected workspace files. The API repeatedly reported connection/DNS errors (`getaddrinfo ENOTFOUND api.us-east.bob.ibm.com` / fetch failure). No completed code contribution or successful test execution from this task has been verified. The Mac then locked, preventing further IDE interaction. The project must not be submitted as satisfying Bob's core-usage requirement on the basis of this attempt alone.
+On September 27, 2026, IBM Bob IDE Agent mode read the repository constraints, checkout release plan, source queries, migration SQL, generated contracts and rehearsal engine. It authored:
 
-When the session can continue, complete the source-to-contract and repair task in `docs/BOB-NEXT-TASK.md`. In Bob IDE, open Tasks → relevant task → task header → consumption summary. Capture the real screen to a PNG named `shivam_task01_checkout_repair_summary.png`; also capture any other relevant participant task summaries. Keep the code contribution and test evidence alongside them. Do not recreate or modify screenshots to imply work that did not occur.
+- `tests/bob-workflow.test.ts`: real PGlite regression assertions for source-contract fidelity, loss of post-deployment order 204, preservation under the additive candidate, identical query/invariant contracts, and invisible writes.
+- `docs/BOB-WORKFLOW-REVIEW.md`: findings and scoped limitations.
 
-The usage statement in `submission/SUBMISSION.md` must be updated only after the task completes and its actual outputs are inspected.
+Bob ran its new suite, corrected a missing `beforeAll` import and reran successfully with 41 passing tests. These are assertions across several related scenarios, not 41 independent migrations. Independent repository validation passed all 88 tests. A follow-up asked Bob to correct review claims. Repository review subsequently corrected its explanation of the redo database lifecycle and the status example, and normalized formatting. Those edits are identified in the review.
+
+`submission/media/bob-verification-work.png` is an actual capture of Bob working in this repository. It is not a task consumption summary. The desktop capture service returned an older visible work frame while accessibility state showed the later completed task.
+
+## Required task-summary screenshots
+
+The genuine task consumption summary PNG remains pending because desktop controls and capture returned stale state. Do not represent the work screenshot above as the required summary. Before final submission, open Bob IDE, Tasks, the relevant task, then the task header to display its consumption summary. Save the actual PNG here, for example `shivam_task02_source_contract_verification_summary.png`. Capture every relevant participant task. Never reconstruct a summary or invent consumption values.
+
+## Earlier interrupted attempt
+
+An earlier task read project files but encountered connection/DNS errors. No code contribution is attributed to that attempt. The completed verification task above is the inspectable Bob contribution used in the usage statement.

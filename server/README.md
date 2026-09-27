@@ -6,11 +6,11 @@ The browser runs PostgreSQL rehearsals. This server handles accounts and private
 
 ```sh
 npm ci
-npm run build
+VITE_FIREBASE_API_KEY='' npm run build
 APP_ORIGIN=http://localhost:3001 npm start
 ```
 
-Open `http://localhost:3001`. The server defaults to port 3001; the production Docker image explicitly uses 3000. Default data path is `./data/undoproof.sqlite`; set `DATA_DIR` to change it. Environment files are not automatically loaded. GitHub Pages runs the guest-only application.
+Open `http://localhost:3001`. The server defaults to port 3001; the production Docker image explicitly uses 3000. Default data path is `./data/undoproof.sqlite`; set `DATA_DIR` to change it. Environment files are not automatically loaded. GitHub Pages runs the guest-only application. The public Firebase deployment is a separate account backend; see [the Firebase guide](../docs/FIREBASE.md). Vite loads local build configuration, so the explicit empty Firebase key above selects this Express backend.
 
 For live frontend development, run `APP_ORIGIN=http://localhost:5173 npm run server` and, in a second terminal, `npm run dev`. Vite forwards `/api` to `http://127.0.0.1:3001`. Open the exact localhost origin configured above; an unexpected Vite port or switching to `127.0.0.1` requires matching `APP_ORIGIN`.
 
@@ -56,6 +56,6 @@ All mutations except bodyless run deletion accept JSON; mutation requests carryi
 
 Bodies are capped at 2 MB and records at 100 per user. SQL is stored as text. Report shape and contract association are validated, but report claims are not attested or independently recomputed by this server. Evidence is never rendered by the server as HTML.
 
-This release has no email verification, password recovery, MFA, organization roles, billing, or hosted managed service. Deploy behind suitable infrastructure and evaluate these needs before offering public commercial accounts. Account deletion removes active data immediately; separately managed backups follow the operator's retention policy.
+This self-hosted account implementation has no email verification, password recovery, MFA, organization roles, or billing. Firebase-hosted accounts separately provide password recovery; email ownership verification is not enabled there either. Deploy behind suitable infrastructure and evaluate these needs before offering public commercial accounts. Account deletion removes active data immediately; separately managed backups follow the operator's retention policy.
 
 Run `npx vitest run tests/server.test.ts` for real HTTP tests covering auth, ownership, deletion, expiry, persistence, origin protection, payload limits, and rate limiting.

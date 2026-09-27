@@ -267,23 +267,24 @@ export async function rehearse(input: ReleaseContract): Promise<RunReport> {
               after,
             };
           });
-          await check(
+          await branch(
             'old-after',
             'Old application after rollback',
             contract.oldReadSql + '\n' + contract.oldWriteSql,
-            async () => {
-              // Transaction avoids contaminating the exact rollback checkpoint or redeploy branch.
-              await rollbackDb.exec('BEGIN');
-              try {
-                await rollbackDb.query(contract.oldReadSql);
-                await rollbackDb.exec(contract.oldWriteSql);
-                await rollbackDb.query(contract.oldReadSql);
-              } finally {
-                await rollbackDb.exec('ROLLBACK');
-              }
+            async (oldDb) => {
+              // Reproduce the rollback in an independent database. Both reads must
+              // remain READ ONLY, including the read that observes the probe write.
+              // Probe writes must never contaminate the separate redeploy branch.
+              await oldDb.exec(contract.seedSql);
+              await oldDb.exec(contract.upSql);
+              await oldDb.exec(contract.newWriteSql);
+              await oldDb.exec(contract.downSql);
+              await readOnly(oldDb, contract.oldReadSql);
+              await oldDb.exec(contract.oldWriteSql);
+              await readOnly(oldDb, contract.oldReadSql);
               return {
                 detail:
-                  'Old reads and writes execute after rollback; probe writes were rolled back.',
+                  'Old reads and writes execute after rollback in an independent database; reads are enforced read-only.',
               };
             },
           );

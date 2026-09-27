@@ -16,3 +16,8 @@ test-results/
 submission/pitch-draft.pptx
 
 output/
+
+.firebase/
+
+# Python tooling caches
+__pycache__/
