@@ -33,3 +33,7 @@ See submission/IMPACT.md and its paired JSON reports. Each is one local CLI meas
 Docker build and runtime smoke passed in GitHub Actions run 36292112366: the nonroot container served both health and application routes. This exercised development cookie mode; production HTTPS termination remains an operator responsibility. Managed public cloud accounts, email verification/recovery, billing, organizations and operational monitoring are not implemented. The full self-hosted app provides tested individual accounts. Public Pages provides the complete guest rehearsal engine.
 
 PGlite is a single-connection embedded PostgreSQL environment. The result covers supplied SQL contracts and fixture projections, not production concurrency, lock timing, extension parity, privileges or all application behavior. See docs/SECURITY.md and docs/CONTRACT-AUTHORING.md.
+
+## Final release CI
+
+Commit `b208415` passed all jobs in [GitHub Actions run 36292234288](https://github.com/shi1720/ibm-bob/actions/runs/36292234288): verify (34 tests, build and real CLI gates), browser (guest workflows and authenticated account deletion), and container (build and HTTP startup). [Pages deployment 36292234360](https://github.com/shi1720/ibm-bob/actions/runs/36292234360) also succeeded. The account job selector was corrected from an outdated test name before this final passing run.
