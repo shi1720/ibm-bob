@@ -1,0 +1,19 @@
+{
+  "seedSql": "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, total_cents INTEGER NOT NULL CHECK(total_cents >= 0));\nINSERT INTO orders VALUES (101, 'Northstar Studio', 24900), (102, 'Juniper Labs', 8900), (103, 'Atlas Works', 15900);",
+  "oldReadSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "oldWriteSql": "INSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);",
+  "invariantSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "tags": [
+    "PostgreSQL",
+    "Checkout",
+    "Synthetic data"
+  ],
+  "id": "checkout-expand",
+  "name": "The safe expansion",
+  "migrationName": "20260927_006_add_fulfillment",
+  "description": "An additive column with a default supports both versions. The application rollback keeps the expanded schema and preserves new orders.",
+  "upSql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS fulfillment TEXT NOT NULL DEFAULT 'unassigned';",
+  "downSql": "-- Roll back the application while retaining additive schema.\nSELECT 1;",
+  "newReadSql": "SELECT id, customer, total_cents, fulfillment FROM orders ORDER BY id;",
+  "newWriteSql": "INSERT INTO orders (id, customer, total_cents, fulfillment) VALUES (104, 'New customer order', 32900, 'queued');"
+}

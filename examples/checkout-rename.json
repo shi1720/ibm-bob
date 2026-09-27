@@ -1,0 +1,25 @@
+{
+  "seedSql": "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, total_cents INTEGER NOT NULL CHECK(total_cents >= 0));\nINSERT INTO orders VALUES (101, 'Northstar Studio', 24900), (102, 'Juniper Labs', 8900), (103, 'Atlas Works', 15900);",
+  "oldReadSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "oldWriteSql": "INSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);",
+  "invariantSql": "SELECT id, to_jsonb(orders)->>'total_cents' AS total_cents, COALESCE(to_jsonb(orders)->>'customer', to_jsonb(orders)->>'customer_name') AS customer FROM orders ORDER BY id;",
+  "tags": [
+    "PostgreSQL",
+    "Checkout",
+    "Synthetic data"
+  ],
+  "id": "checkout-rename",
+  "name": "The broken rolling deploy",
+  "migrationName": "20260927_005_rename_customer",
+  "description": "Renaming customer to customer_name works for the new application, but old instances still query and write customer during a rolling deployment.",
+  "upSql": "ALTER TABLE orders RENAME COLUMN customer TO customer_name;",
+  "downSql": "ALTER TABLE orders RENAME COLUMN customer_name TO customer;",
+  "newReadSql": "SELECT id, customer_name, total_cents FROM orders ORDER BY id;",
+  "newWriteSql": "INSERT INTO orders (id, customer_name, total_cents) VALUES (104, 'New customer order', 32900);",
+  "repair": {
+    "summary": "Expand the schema with a generated alias. Keep customer as the write contract during this release, expose customer_name for new readers, and retain both on application rollback. A future write-contract cutover needs its own rehearsal.",
+    "upSql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name TEXT GENERATED ALWAYS AS (customer) STORED;",
+    "downSql": "-- Retain generated alias while reverting the application.\nSELECT 1;",
+    "newWriteSql": "INSERT INTO orders (id, customer, total_cents) VALUES (104, 'New customer order', 32900);"
+  }
+}

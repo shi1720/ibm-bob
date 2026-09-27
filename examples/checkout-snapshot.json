@@ -1,0 +1,24 @@
+{
+  "seedSql": "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, total_cents INTEGER NOT NULL CHECK(total_cents >= 0));\nINSERT INTO orders VALUES (101, 'Northstar Studio', 24900), (102, 'Juniper Labs', 8900), (103, 'Atlas Works', 15900);",
+  "oldReadSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "oldWriteSql": "INSERT INTO orders (id, customer, total_cents) VALUES (105, 'Legacy checkout', 4200);",
+  "invariantSql": "SELECT id, customer, total_cents FROM orders ORDER BY id;",
+  "tags": [
+    "PostgreSQL",
+    "Checkout",
+    "Synthetic data"
+  ],
+  "id": "checkout-snapshot",
+  "name": "The disappearing order",
+  "migrationName": "20260927_004_add_order_status",
+  "description": "A checkout release adds order status. Forward tests pass. The rollback restores a pre-release snapshot — silently erasing orders placed after deployment.",
+  "upSql": "CREATE TABLE orders_backup AS TABLE orders;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';",
+  "downSql": "DROP TABLE orders;\nALTER TABLE orders_backup RENAME TO orders;",
+  "newReadSql": "SELECT id, customer, total_cents, status FROM orders ORDER BY id;",
+  "newWriteSql": "INSERT INTO orders (id, customer, total_cents, status) VALUES (104, 'New customer order', 32900, 'paid');",
+  "repair": {
+    "summary": "Keep the additive status column when reverting the application. Old code ignores it, and its DEFAULT supports old writers. Remove the snapshot restoration so post-deployment orders survive. Clean up schema later in a separately rehearsed release.",
+    "upSql": "ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';",
+    "downSql": "-- Application rollback: retain the compatible expanded schema.\nSELECT 1;"
+  }
+}

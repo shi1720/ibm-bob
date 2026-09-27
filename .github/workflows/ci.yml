@@ -1,0 +1,28 @@
+name: Test and rehearse
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run rehearse -- demo:safe --out=safe-report.json
+      - run: npm run rehearse -- demo:snapshot --repair --out=repaired-report.json
+      - name: Require unsafe rollback to fail the gate
+        run: |
+          set +e
+          npm run rehearse -- demo:snapshot --out=blocked-report.json
+          result=$?
+          test "$result" -eq 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-evidence
+          path: '*-report.json'
