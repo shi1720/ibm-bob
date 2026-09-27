@@ -45,7 +45,7 @@ jobs:
             curl --fail http://127.0.0.1:3001/api/health && break
             sleep 1
           done
-          E2E_BASE_URL=http://127.0.0.1:3001 E2E_WITH_AUTH=1 npx playwright test --grep 'private account'
+          E2E_BASE_URL=http://127.0.0.1:3001 E2E_WITH_AUTH=1 npx playwright test --grep 'private workspace deletion'
   container:
     runs-on: ubuntu-latest
     steps:

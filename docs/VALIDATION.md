@@ -12,7 +12,7 @@ Executed September 27, 2026 on macOS arm64 / Node 22.16.0, unless noted otherwis
 - HTTP integration covers account registration/login, session rotation/expiry, per-user history isolation, origin rejection, request-size limits, rate limiting, SQLite persistence, production secure cookies and cascading account deletion.
 - Production browser tests cover real blocked→repair→passed behavior, highlighted missing row 104, contract import/edit/validation, evidence export/history, responsive layout, optional account explanation, a real 30-second SQL timeout, and 10,000-row evidence with a 100-row display preview.
 - Account browser test covers signup, private reports not entering guest storage, mobile signout, login persistence, wrong-password deletion rejection, correct deletion and guest-history retention.
-- Live public demo smoke test executes the actual deployed WASM/data assets, runs blocked→repaired→passed, inspects row 104 and exports evidence. No browser/network errors were observed in the initial live smoke.
+- Live public demo smoke test executes the actual deployed WASM/data assets, runs blocked→repaired→passed, inspects row 104 and exports evidence. No browser/network errors were observed in either live smoke. Final evidence is in submission/media/public-smoke-result.json and public-demo.png.
 - `npm audit` reports 0 vulnerabilities across production and development dependencies after the Vitest advisory fix. This is a point-in-time package audit, not proof of absence of vulnerabilities.
 
 ## Measured example

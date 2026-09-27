@@ -1,0 +1,84 @@
+{
+  "url": "https://shi1720.github.io/ibm-bob/",
+  "verifiedAt": "2026-09-27T03:42:30.121Z",
+  "status": "passed",
+  "flow": [
+    "unsafe contract blocked",
+    "missing order 104 inspected",
+    "repair reviewed and applied",
+    "same checks passed",
+    "JSON export matched"
+  ],
+  "checkCount": 10,
+  "contractHash": "eb3783a6c63dd4a7bcd1625b56ae792561c283016088780e1ae8d3b09dacc80c",
+  "engine": "PostgreSQL / PGlite 0.3.16 (WASM)",
+  "durationMs": 1603.7,
+  "assets": [
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/worker-B_mb2DK7.js",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-BdRI_ZYT.wasm",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/worker-B_mb2DK7.js",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-BdRI_ZYT.wasm",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    },
+    {
+      "url": "https://shi1720.github.io/ibm-bob/assets/pglite-COscPi1Y.data",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "failedAssets": []
+}
