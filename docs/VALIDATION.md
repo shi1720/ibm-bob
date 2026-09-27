@@ -30,6 +30,6 @@ See submission/IMPACT.md and its paired JSON reports. Each is one local CLI meas
 
 ## Remaining limits
 
-Docker runtime validation is queued in CI; a Dockerfile alone is not recorded as a successful container run. Managed public cloud accounts, email verification/recovery, billing, organizations and operational monitoring are not implemented. The full self-hosted app provides tested individual accounts. Public Pages provides the complete guest rehearsal engine.
+Docker build and runtime smoke passed in GitHub Actions run 36292112366: the nonroot container served both health and application routes. This exercised development cookie mode; production HTTPS termination remains an operator responsibility. Managed public cloud accounts, email verification/recovery, billing, organizations and operational monitoring are not implemented. The full self-hosted app provides tested individual accounts. Public Pages provides the complete guest rehearsal engine.
 
 PGlite is a single-connection embedded PostgreSQL environment. The result covers supplied SQL contracts and fixture projections, not production concurrency, lock timing, extension parity, privileges or all application behavior. See docs/SECURITY.md and docs/CONTRACT-AUTHORING.md.

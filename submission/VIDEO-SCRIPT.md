@@ -123,3 +123,14 @@ Show the live public demo address and cover title.
 ## Recording and export
 
 Record voiceover separately in a quiet room. Use the exact MP4 without speeding the cursor or faking terminal output. Keep captions legible over the captured app. Export H.264 MP4, 1920 by 1080 or the source aspect ratio, 30 fps, with clear audio. Recheck final duration after adding intro and closing frames. The raw WebM includes startup padding; use the trimmed MP4 above.
+
+## Automated assembly after recording
+
+After capturing a genuine Bob task summary and recording narration aligned to the timestamps, run:
+
+```sh
+python3 scripts/assemble-video.py --voiceover /absolute/path/voiceover.wav --bob-summary bob_sessions/your-genuine-summary.png
+npm run submission:check
+```
+
+The helper preserves the full 126-second recording, adds the cover and genuine Bob summary, and creates a 176-second H.264 MP4. It requires ffmpeg/ffprobe and a 170–176-second voiceover with timing pauses. It does not verify the authenticity of supplied screenshots or narration claims. Watch the complete output and update the Bob captions before submitting. The helper cannot be fully exercised until those real inputs exist.
