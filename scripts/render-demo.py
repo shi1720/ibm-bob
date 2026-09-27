@@ -12,11 +12,12 @@ import json
 import re
 import subprocess
 import wave
+import numpy as np
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-WORK = ROOT / '.artifacts/video'
+WORK = ROOT / '.artifacts/video-v2'
 OUT = ROOT / 'submission'
 WORK.mkdir(parents=True, exist_ok=True)
 FONT = ROOT / 'src/assets/fonts/font-0.ttf'
@@ -162,27 +163,27 @@ def say(sentence):
     return path
 
 
-def wav_samples(path,speed=1):
-    out=WORK/(path.stem+f'-{speed:.4f}.wav')
-    if not out.exists():
-        run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',path,'-af',f'atempo={speed:.6f}', '-ar','24000','-ac','1','-c:a','pcm_s16le',out])
-    with wave.open(str(out),'rb') as w:return w.readframes(w.getnframes())
+def wav_samples(path):
+    """Trim only boundary silence, with short fades to avoid edit clicks.
+
+    Preserve the original voice speed and all internal pauses.
+    """
+    import soundfile as sf
+    samples, rate = sf.read(path, dtype='float32')
+    assert rate == 24000 and samples.ndim == 1
+    voiced = np.flatnonzero(np.abs(samples) > 0.004)
+    if not len(voiced):
+        raise ValueError(f'Empty narration: {path}')
+    samples = samples[max(0, voiced[0]-1920):min(len(samples), voiced[-1]+2401)].copy()
+    fade = min(120, len(samples)//2)
+    samples[:fade] *= np.linspace(0, 1, fade)
+    samples[-fade:] *= np.linspace(1, 0, fade)
+    return (np.clip(samples, -1, 1)*32767).astype('<i2').tobytes()
 
 
 def stamp(sec):
     ms=round(sec*1000)
     return f'{ms//3600000:02}:{ms//60000%60:02}:{ms//1000%60:02},{ms%1000:03}'
-
-
-def caption_chunks(sentence):
-    # Phrase-length cues remain aligned within their actual audio chunk.
-    words=sentence.split();chunks=[];current=[]
-    for word in words:
-        current.append(word)
-        if len(' '.join(current))>=77 or (len(current)>=7 and word.endswith(('.', '?', '!'))):
-            chunks.append(' '.join(current));current=[]
-    if current:chunks.append(' '.join(current))
-    return chunks
 
 
 def render_overlay(path,label,caption):
@@ -193,7 +194,7 @@ def render_overlay(path,label,caption):
     text(d,(1660,20),'SYNTHETIC VOICEOVER',16,'#c7d9d7')
     d.rectangle((0,960,1920,1080),fill=INK)
     if caption:
-        face=font(34)
+        face=font(30)
         lines=wrapped(d,caption,face,1760)
         assert len(lines)<=2,(caption,lines)
         y=971+(100-len(lines)*43)/2
@@ -220,31 +221,19 @@ def main():
     for start,end,label,sentences in SCENES:
         if not sentences:continue
         sources=[say(s) for s in sentences]
-        raw=sum(duration(x) for x in sources)
-        available=end-start-0.6-0.2*(len(sources)-1)
-        speed=max(1,raw/available)
-        if speed>1.24:raise RuntimeError(f'Narration too long for {label}: speed {speed:.2f}')
-        chunks=[wav_samples(x,speed) for x in sources]
+        chunks=[wav_samples(x) for x in sources]
         total=sum(len(x)/48000 for x in chunks)
-        gap=min(0.65,max(0.12,(end-start-total-.6)/max(1,len(chunks)-1)))
-        assert total + 0.3 + gap * (len(chunks)-1) <= end-start, label
-        t=start+0.3
+        gap=0.28
+        if total + 0.16 + gap*(len(chunks)-1) > end-start:
+            raise RuntimeError(f'Rewrite narration to fit {label}: {total:.2f}s')
+        t=start+0.08
         for sentence,pcm in zip(sentences,chunks):
             length=len(pcm)/48000
             offset=round(t*24000)*2
             audio[offset:offset+len(pcm)]=pcm
-            words=caption_chunks(sentence)
-            # Keep trailing one-word fragments readable instead of flashing them.
-            while len(words) > 1 and length * len(words[-1]) / sum(map(len, words)) < 1.2:
-                tail=words.pop()
-                words[-1] += ' ' + tail
-            weight=sum(len(x) for x in words)
-            at=t
-            for cap in words:
-                span=length*len(cap)/weight
-                captions.append({'start':at,'end':at+span,'text':cap,'label':label})
-                at+=span
-            timeline.append({'start':t,'end':t+length,'text':sentence,'scene':label,'speed':speed})
+            # One complete spoken sentence per cue. No estimated intra-sentence cuts.
+            captions.append({'start':t,'end':t+length,'text':sentence,'label':label})
+            timeline.append({'start':t,'end':t+length,'text':sentence,'scene':label,'speed':1.0})
             t+=length+gap
         print(f'{start:3}-{end:3}s | narration {total:.1f}s | {label}',flush=True)
     (WORK/'narration-timing.json').write_text(json.dumps(timeline,indent=2))
@@ -274,24 +263,37 @@ def main():
         command+=['-vf',vf,'-c:v','libx264','-preset','fast','-crf','18',target]
         run(command);base.append(target)
     manifest=WORK/'base.txt';manifest.write_text(''.join(f"file '{x.as_posix()}'\n" for x in base))
-    # Fill subtitle gaps explicitly so no cue remains on screen after speech ends.
-    cuts={0.,176.}
-    for a,b,_,_ in SCENES:cuts.update((float(a),float(b)))
-    for c in captions:cuts.update((c['start'],c['end']))
-    cuts=sorted(cuts);overlays=[]
-    for i,(a,b) in enumerate(zip(cuts,cuts[1:])):
-        mid=(a+b)/2
-        label=next(label for st,en,label,_ in SCENES if st<=mid<en)
-        cap=next((c['text'] for c in captions if c['start']<=mid<c['end']),'')
-        path=WORK/f'caption-{i:03}.png';render_overlay(path,label,cap)
-        overlays.append((path,b-a))
-    cap_manifest=WORK/'captions.txt'
-    cap_manifest.write_text(''.join(f"file '{path.as_posix()}'\nduration {d:.6f}\n" for path,d in overlays)+f"file '{overlays[-1][0].as_posix()}'\n")
-    run(['ffmpeg','-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',manifest,'-f','concat','-safe','0','-i',cap_manifest,'-i',WORK/'narration.wav','-filter_complex','[0:v][1:v]overlay=0:0:format=auto[v];[2:a]loudnorm=I=-16:TP=-1.5:LRA=9[a]','-map','[v]','-map','[a]','-r','25','-c:v','libx264','-preset','fast','-crf','19','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-t','176','-movflags','+faststart',OUT/'final-demo.mp4'])
+    # Render the overlay at exactly one frame per base-video frame. This avoids
+    # image-concat timebase rounding and guarantees caption/SRT agreement <=40ms.
+    fps=25
+    command=['ffmpeg','-hide_banner','-loglevel','error','-y',
+        '-i',base[0],'-i',base[1],'-i',base[2],'-i',base[3],
+        '-f','rawvideo','-pixel_format','rgba','-video_size','1920x1080',
+        '-framerate',str(fps),'-i','pipe:0','-i',WORK/'narration.wav',
+        '-filter_complex','[0:v]settb=AVTB,setpts=PTS-STARTPTS[b0];[1:v]settb=AVTB,setpts=PTS-STARTPTS[b1];[2:v]settb=AVTB,setpts=PTS-STARTPTS[b2];[3:v]settb=AVTB,setpts=PTS-STARTPTS[b3];[b0][b1][b2][b3]concat=n=4:v=1:a=0[base];[base][4:v]overlay=0:0:format=auto[v];[5:a]loudnorm=I=-16:TP=-1.5:LRA=9[a]',
+        '-map','[v]','-map','[a]','-r',str(fps),'-c:v','libx264',
+        '-preset','fast','-crf','19','-pix_fmt','yuv420p','-c:a','aac',
+        '-b:a','192k','-t','176','-movflags','+faststart',OUT/'final-demo.mp4']
+    process=subprocess.Popen([str(x) for x in command],stdin=subprocess.PIPE)
+    previous=None
+    for frame in range(176*fps):
+        at=frame/fps
+        label=next(label for st,en,label,_ in SCENES if st<=at<en)
+        cap=next((c['text'] for c in captions if c['start']<=at<c['end']),'')
+        key=(label,cap)
+        if key != previous:
+            path=WORK/'current-overlay.png'
+            render_overlay(path,label,cap)
+            pixels=Image.open(path).convert('RGBA').tobytes()
+            previous=key
+        process.stdin.write(pixels)
+    process.stdin.close()
+    if process.wait() != 0:
+        raise RuntimeError('Video encoding failed')
     info=probe(OUT/'final-demo.mp4')
     assert float(info['format']['duration']) <= 176.1
     assert any(stream['codec_type'] == 'audio' for stream in info['streams'])
-    (OUT/'media/final-video-verification.json').write_text(json.dumps({'durationSeconds':float(info['format']['duration']),'actualApplicationSeconds':126,'width':1920,'height':1080,'syntheticVoice':'Kokoro v1.0 '+VOICE,'speechModel':'kokoro-v1.0.onnx','neuralNarration':True,'bobScreenshot':str(args.bob_summary.resolve().relative_to(ROOT)),'bobScreenshotSha256':hashlib.sha256(args.bob_summary.read_bytes()).hexdigest(),'bobPanelCrop':[2424,900,3005,1360],'captionCount':len(captions),'sizeBytes':int(info['format']['size'])},indent=2))
+    (OUT/'media/final-video-verification.json').write_text(json.dumps({'durationSeconds':float(info['format']['duration']),'actualApplicationSeconds':126,'width':1920,'height':1080,'syntheticVoice':'Kokoro v1.0 '+VOICE,'speechModel':'kokoro-v1.0.onnx','neuralNarration':True,'bobScreenshot':str(args.bob_summary.resolve().relative_to(ROOT)),'bobScreenshotSha256':hashlib.sha256(args.bob_summary.read_bytes()).hexdigest(),'bobPanelCrop':[2424,900,3005,1360],'captionCount':len(captions),'captionTiming':'Exact complete-sentence PCM boundaries, frame-locked at 25fps','maximumCaptionQuantizationSeconds':0.04,'audioTimeStretch':False,'boundaryFadeMilliseconds':5,'sizeBytes':int(info['format']['size'])},indent=2))
     print('Rendered submission/final-demo.mp4. Inspect frames, audio and the full edit before publishing.')
 
 if __name__=='__main__':main()

@@ -2,7 +2,7 @@
 
 The final demo uses **Kokoro v1.0, voice `af_heart`**, generated locally. It does not use a recording or clone of Shivam Gupta's voice. The video continuously labels the narration as synthetic.
 
-The script uses shorter sentences and contractions. Speech is generated at speed `0.98`, then placed within the original scene timings. The actual 126-second application recording remains unsped. Captions occupy their own band below the product interface.
+The script uses shorter sentences and contractions. Speech is regenerated at speed `0.98` and placed within the original scene timings without time stretching. Boundary silence is trimmed, with five-millisecond fades to prevent edit clicks. Internal speech and pauses are preserved. The actual 126-second application recording remains unsped. Each caption contains the complete corresponding spoken sentence and uses its exact PCM start and end times. Captions occupy their own band below the product interface. A single 25 fps frame timeline drives the burned captions, with a maximum 40 ms quantization difference from the SRT. No text-length timing estimates or variable-duration image concatenation are used.
 
 ## Reproduction
 
@@ -29,3 +29,7 @@ python scripts/render-demo.py \
 `--bob-confirmed` records that the actual contribution and narration have been reviewed. The work capture does not replace the required Bob task consumption summary.
 
 The short preview `media/neural-voice-sample.mp3` is for voice review. The submission asset is `final-demo.mp4` with the complete narration, captions and real screen recording.
+
+## Synchronization verification
+
+The rebuilt edit joins four independently decoded clips on normalized timestamps. This fixes the earlier clip-boundary jump. `scripts/verify-demo.py` checks all scene midpoints and both sides of each principal edit: 22 footage comparisons and 22 caption comparisons, followed by a full audio/video decode. An independent local Whisper transcription was reviewed against the narration for missing segments. The report is in `media/final-video-verification.json`.
